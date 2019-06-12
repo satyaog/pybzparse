@@ -20,14 +20,9 @@ Reads the first box header at byte 0. Returns `False` if box header does not exi
     True
     >>> pymp4parse.F4VParser.is_mp4(filename='/etc/resolv.conf')
     False
-    
 
-## Installation
-
-    pip install https://github.com/use-sparingly/mp4parse/zipball/master
 
 ### Prerequisites
-Pip should install prerequisites. In case you're manually installing, you'll need:
+You'll need:
 
 1. Bitstring - https://pypi.python.org/pypi/bitstring/
-
