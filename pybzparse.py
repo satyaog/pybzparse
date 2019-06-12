@@ -1,19 +1,11 @@
-""" MP4 Parser based on:
-http://download.macromedia.com/f4v/video_file_format_spec_v10_1.pdf 
-
-@author: Alastair McCormack
-@license: MIT License
-
-"""
+""" Benzina MP4 Parser based on https://github.com/use-sparingly/pymp4parse """
 
 import bitstring
 from datetime import datetime
 from collections import namedtuple
 import logging
-import six
 
 log = logging.getLogger(__name__)
-# log.addHandler(logging.NullHandler())
 log.setLevel(logging.WARN)
 
 
@@ -47,6 +39,10 @@ class MovieFragmentBox(MixinDictRepr):
 class BootStrapInfoBox(MixinDictRepr):
     type = "abst"
 
+    def __init__(self):
+        super(BootStrapInfoBox, self).__init__()
+        self._current_media_time = None
+
     @property
     def current_media_time(self):
         return self._current_media_time
@@ -54,36 +50,37 @@ class BootStrapInfoBox(MixinDictRepr):
     @current_media_time.setter
     def current_media_time(self, epoch_timestamp):
         """ Takes a timestamp arg and saves it as datetime """
-        self._current_media_time = datetime.utcfromtimestamp(epoch_timestamp / float(self.time_scale))
+        self._current_media_time = \
+            datetime.utcfromtimestamp(epoch_timestamp / float(self.time_scale))
 
 
 class FragmentRandomAccessBox(MixinDictRepr):
     """ aka afra """
     type = "afra"
 
-    FragmentRandomAccessBoxEntry = namedtuple("FragmentRandomAccessBoxEntry", ["time", "offset"])
-    FragmentRandomAccessBoxGlobalEntry = namedtuple("FragmentRandomAccessBoxGlobalEntry",
-                                                    ["time", "segment_number", "fragment_number", "afra_offset",
-                                                     "sample_offset"])
-
+    BoxEntry = namedtuple("FragmentRandomAccessBoxEntry", ["time", "offset"])
+    BoxGlobalEntry = namedtuple("FragmentRandomAccessBoxGlobalEntry",
+                                ["time", "segment_number", "fragment_number",
+                                 "afra_offset", "sample_offset"])
     pass
 
 
 class SegmentRunTable(MixinDictRepr):
     type = "asrt"
 
-    SegmentRunTableEntry = namedtuple('SegmentRunTableEntry', ["first_segment", "fragments_per_segment"])
+    TableEntry = namedtuple("SegmentRunTableEntry", ["first_segment",
+                                                     "fragments_per_segment"])
     pass
 
 
 class FragmentRunTable(MixinDictRepr):
     type = "afrt"
 
-    class FragmentRunTableEntry(namedtuple('FragmentRunTableEntry',
-                                           ["first_fragment",
-                                            "first_fragment_timestamp",
-                                            "fragment_duration",
-                                            "discontinuity_indicator"])):
+    class TableEntry(namedtuple("FragmentRunTableEntry",
+                                ["first_fragment",
+                                 "first_fragment_timestamp",
+                                 "fragment_duration",
+                                 "discontinuity_indicator"])):
         DI_END_OF_PRESENTATION = 0
         DI_NUMBERING = 1
         DI_TIMESTAMP = 2
@@ -116,24 +113,25 @@ class ProtectionSystemSpecificHeader(MixinDictRepr):
 BoxHeader = namedtuple("BoxHeader", ["box_size", "box_type", "header_size"])
 
 
-class F4VParser(object):
+class Parser(object):
 
     @classmethod
-    def parse(cls, filename=None, bytes_input=None, file_input=None, offset_bytes=0, headers_only=False):
+    def parse(cls, filename=None, bytes_input=None, file_input=None,
+              offset_bytes=0, headers_only=False):
         """
         Parse an MP4 file or bytes into boxes
-
 
         :param filename: filename of mp4 file.
         :type filename: str.
         :param bytes_input: bytes of mp4 file.
         :type bytes_input: bytes / Python 2.x str.
+        :param file_input: Filename or file object
+        :type file_input: str, file
         :param offset_bytes: start parsing at offset.
         :type offset_bytes: int.
         :param headers_only: Ignore data and return just headers. Useful when data is cut short
         :type: headers_only: boolean
         :return: BMFF Boxes or Headers
-
         """
 
         box_lookup = {
@@ -160,7 +158,7 @@ class F4VParser(object):
             log.debug("Reading header")
             try:
                 header = cls._read_box_header(bs)
-            except bitstring.ReadError as e:
+            except bitstring.ReadError:
                 log.error("Premature end of data while reading box header")
                 raise
 
@@ -181,21 +179,22 @@ class F4VParser(object):
                 parse_function = box_lookup.get(header.box_type, cls._parse_unimplemented)
                 try:
                     yield parse_function(bs, header)
-                except ValueError as e:
+                except ValueError:
                     log.error("Premature end of data")
                     raise
 
     @classmethod
     def _is_mp4(cls, parser):
         try:
-            for box in parser:
-                return True
+            _ = next(iter(parser))
+            return True
         except ValueError:
             return False
 
     @classmethod
     def is_mp4_s(cls, bytes_input):
-        """ Is bytes_input the contents of an MP4 file
+        """
+        Is bytes_input the contents of an MP4 file
 
         :param bytes_input: str/bytes to check.
         :type bytes_input: str/bytes.
@@ -207,12 +206,11 @@ class F4VParser(object):
 
     @classmethod
     def is_mp4(cls, file_input):
-        """ Checks input if it's an MP4 file
+        """
+        Checks input if it's an MP4 file
 
-        :param input: Filename or file object
-        :type input: str, file
-        :param state: Current state to be in.
-        :type state: bool.
+        :param file_input: Filename or file object
+        :type file_input: str, file
         :returns:  bool.
         :raises: AttributeError, KeyError
         """
@@ -234,7 +232,7 @@ class F4VParser(object):
         """ Read a count then return the strings in a list """
         result = []
         entry_count = bs.read("uint:8")
-        for _ in six.range(0, entry_count):
+        for _ in range(0, entry_count):
             result.append(cls._read_string(bs))
         return result
 
@@ -245,7 +243,7 @@ class F4VParser(object):
 
         # box_type should be an ASCII string. Decode as UTF-8 in case
         try:
-            box_type = box_type.decode('utf-8')
+            box_type = box_type.decode("utf-8")
         except UnicodeDecodeError:
             # we'll leave as bytes instead
             pass
@@ -257,7 +255,8 @@ class F4VParser(object):
         header_end_pos = bs.bytepos
         header_size = header_end_pos - header_start_pos
 
-        return BoxHeader(box_size=size - header_size, box_type=box_type, header_size=header_size)
+        return BoxHeader(box_size=size - header_size, box_type=box_type,
+                         header_size=header_size)
 
     @staticmethod
     def _parse_unimplemented(bs, header):
@@ -293,14 +292,13 @@ class F4VParser(object):
 
         log.debug("local_access_entries entry count: %s", local_entry_count)
         afra.local_access_entries = []
-        for _ in six.range(0, local_entry_count):
+        for _ in range(0, local_entry_count):
             time = cls._parse_time_field(afra_bs, afra.time_scale)
 
             offset = afra_bs.read(offset_bs_type)
 
-            afra_entry = \
-                FragmentRandomAccessBox.FragmentRandomAccessBoxEntry(time=time,
-                                                                     offset=offset)
+            afra_entry = FragmentRandomAccessBox.BoxEntry(time=time,
+                                                          offset=offset)
             afra.local_access_entries.append(afra_entry)
 
         afra.global_access_entries = []
@@ -310,7 +308,7 @@ class F4VParser(object):
 
             log.debug("global_access_entries entry count: %s", global_entry_count)
 
-            for _ in six.range(0, global_entry_count):
+            for _ in range(0, global_entry_count):
                 time = cls._parse_time_field(afra_bs, afra.time_scale)
 
                 segment_number = afra_bs.read(id_bs_type)
@@ -320,7 +318,7 @@ class F4VParser(object):
                 sample_offset = afra_bs.read(offset_bs_type)
 
                 afra_global_entry = \
-                    FragmentRandomAccessBox.FragmentRandomAccessBoxGlobalEntry(
+                    FragmentRandomAccessBox.BoxGlobalEntry(
                         time=time,
                         segment_number=segment_number,
                         fragment_number=fragment_number,
@@ -348,7 +346,7 @@ class F4VParser(object):
         mfhd = MovieFragmentHeader()
         mfhd.header = header
 
-        box_bs = bootstrap_bs.read(mfhd.header.box_size * 8)
+        _ = bootstrap_bs.read(mfhd.header.box_size * 8)
         return mfhd
 
     @staticmethod
@@ -370,10 +368,10 @@ class F4VParser(object):
         box_bs = bootstrap_bs.read(abst.header.box_size * 8)
 
         abst.version, abst.profile_raw, abst.live, abst.update, \
-        abst.time_scale, abst.current_media_time, abst.smpte_timecode_offset = \
+            abst.time_scale, abst.current_media_time, abst.smpte_timecode_offset = \
             box_bs.readlist("""pad:8, pad:24, uint:32, uint:2, bool, bool,
-                                   pad:4,
-                                   uint:32, uint:64, uint:64""")
+                               pad:4,
+                               uint:32, uint:64, uint:64""")
         abst.movie_identifier = cls._read_string(box_bs)
 
         abst.server_entry_table = cls._read_count_and_string_table(box_bs)
@@ -386,13 +384,13 @@ class F4VParser(object):
 
         segment_count = box_bs.read("uint:8")
         log.debug("segment_count: %d" % segment_count)
-        for _ in six.range(0, segment_count):
+        for _ in range(0, segment_count):
             abst.segment_run_tables.append(cls._parse_asrt(box_bs))
 
         abst.fragment_tables = []
         fragment_count = box_bs.read("uint:8")
         log.debug("fragment_count: %d" % fragment_count)
-        for _ in xrange(0, fragment_count):
+        for _ in range(0, fragment_count):
             abst.fragment_tables.append(cls._parse_afrt(box_bs))
 
         log.debug("Finished parsing abst")
@@ -417,12 +415,12 @@ class F4VParser(object):
         asrt.segment_run_table_entries = []
         segment_count = asrt_bs_box.read("uint:32")
 
-        for _ in six.range(0, segment_count):
+        for _ in range(0, segment_count):
             first_segment = asrt_bs_box.read("uint:32")
             fragments_per_segment = asrt_bs_box.read("uint:32")
             asrt.segment_run_table_entries.append(
-                SegmentRunTable.SegmentRunTableEntry(first_segment=first_segment,
-                                                     fragments_per_segment=fragments_per_segment))
+                SegmentRunTable.TableEntry(first_segment=first_segment,
+                                           fragments_per_segment=fragments_per_segment))
         return asrt
 
     @classmethod
@@ -445,7 +443,7 @@ class F4VParser(object):
 
         afrt.fragments = []
 
-        for _ in six.range(0, fragment_count):
+        for _ in range(0, fragment_count):
             first_fragment = afrt_bs_box.read("uint:32")
             first_fragment_timestamp_raw = afrt_bs_box.read("uint:64")
 
@@ -463,10 +461,10 @@ class F4VParser(object):
             else:
                 discontinuity_indicator = None
 
-            frte = FragmentRunTable.FragmentRunTableEntry(first_fragment=first_fragment,
-                                                          first_fragment_timestamp=first_fragment_timestamp,
-                                                          fragment_duration=fragment_duration,
-                                                          discontinuity_indicator=discontinuity_indicator)
+            frte = FragmentRunTable.TableEntry(first_fragment=first_fragment,
+                                               first_fragment_timestamp=first_fragment_timestamp,
+                                               fragment_duration=fragment_duration,
+                                               discontinuity_indicator=discontinuity_indicator)
             afrt.fragments.append(frte)
         return afrt
 

@@ -7,16 +7,16 @@ except(IOError, ImportError):
     long_description = open('README.md').read()
 
 setup(
-    name='pymp4parse',
-    version='0.3.0',
+    name='pybzparse',
+    version='0.1.0',
     packages=[''],
-    url='https://github.com/use-sparingly/pymp4parse',
+    url='https://github.com/satyaog/pybzparse',
     license='The MIT License',
     author='Alastair Mccormack',
     author_email='alastair at alu.media',
     description='MP4 / ISO base media file format (ISO/IEC 14496-12 - MPEG-4 Part 12) file parser',
-    requires=['bitstring', 'six'],
-    install_requires=['bitstring', 'six'],
+    requires=['bitstring'],
+    install_requires=['bitstring'],
     long_description=long_description,
     data_files=[('', ['README.md'])]
 )
