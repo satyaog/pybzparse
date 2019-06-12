@@ -115,9 +115,9 @@ class BootStrapInfoBox(AbstractBox, MixinDictRepr):
         abst.version, abst.profile_raw, abst.live, abst.update, \
             abst.time_scale, abst.current_media_time, abst.smpte_timecode_offset = \
             box_bs.readlist("""pad:8, pad:24,
-                               uint:32, uint:2, bool, bool,
+                               uintbe:32, uintbe:2, bool, bool,
                                pad:4,
-                               uint:32, uint:64, uint:64""")
+                               uintbe:32, uintbe:64, uintbe:64""")
         abst.movie_identifier = Parser.read_string(box_bs)
 
         abst.server_entry_table = Parser.read_count_and_string_table(box_bs)
@@ -128,13 +128,13 @@ class BootStrapInfoBox(AbstractBox, MixinDictRepr):
 
         abst.segment_run_tables = []
 
-        segment_count = box_bs.read("uint:8")
+        segment_count = box_bs.read("uintbe:8")
         log.debug("segment_count: %d" % segment_count)
         for _ in range(0, segment_count):
             abst.segment_run_tables.append(SegmentRunTable.parse(box_bs))
 
         abst.fragment_tables = []
-        fragment_count = box_bs.read("uint:8")
+        fragment_count = box_bs.read("uintbe:8")
         log.debug("fragment_count: %d" % fragment_count)
         for _ in range(0, fragment_count):
             abst.fragment_tables.append(FragmentRunTable.parse(box_bs))
@@ -169,17 +169,17 @@ class FragmentRandomAccessBox(AbstractBox, MixinDictRepr):
         # skip Version and Flags
         afra_bs.pos += 8 + 24
         long_ids, long_offsets, global_entries, afra.time_scale, local_entry_count = \
-            afra_bs.readlist("bool, bool, bool, pad:5, uint:32, uint:32")
+            afra_bs.readlist("bool, bool, bool, pad:5, uintbe:32, uintbe:32")
 
         if long_ids:
-            id_bs_type = "uint:32"
+            id_bs_type = "uintbe:32"
         else:
-            id_bs_type = "uint:16"
+            id_bs_type = "uintbe:16"
 
         if long_offsets:
-            offset_bs_type = "uint:64"
+            offset_bs_type = "uintbe:64"
         else:
-            offset_bs_type = "uint:32"
+            offset_bs_type = "uintbe:32"
 
         log.debug("local_access_entries entry count: %s", local_entry_count)
         afra.local_access_entries = []
@@ -195,7 +195,7 @@ class FragmentRandomAccessBox(AbstractBox, MixinDictRepr):
         afra.global_access_entries = []
 
         if global_entries:
-            global_entry_count = afra_bs.read("uint:32")
+            global_entry_count = afra_bs.read("uintbe:32")
 
             log.debug("global_access_entries entry count: %s", global_entry_count)
 
@@ -243,17 +243,17 @@ class SegmentRunTable(AbstractTable, MixinDictRepr):
         asrt_bs_box = box_bs.read(asrt.header.box_size * 8)
 
         asrt_bs_box.pos += 8
-        update_flag = asrt_bs_box.read("uint:24")
+        update_flag = asrt_bs_box.read("uintbe:24")
         asrt.update = True if update_flag == 1 else False
 
         asrt.quality_segment_url_modifiers = Parser.read_count_and_string_table(asrt_bs_box)
 
         asrt.segment_run_table_entries = []
-        segment_count = asrt_bs_box.read("uint:32")
+        segment_count = asrt_bs_box.read("uintbe:32")
 
         for _ in range(0, segment_count):
-            first_segment = asrt_bs_box.read("uint:32")
-            fragments_per_segment = asrt_bs_box.read("uint:32")
+            first_segment = asrt_bs_box.read("uintbe:32")
+            fragments_per_segment = asrt_bs_box.read("uintbe:32")
             asrt.segment_run_table_entries.append(
                 SegmentRunTable.TableEntry(first_segment=first_segment,
                                            fragments_per_segment=fragments_per_segment))
@@ -299,19 +299,19 @@ class FragmentRunTable(AbstractTable, MixinDictRepr):
         afrt_bs_box = box_bs.read(afrt.header.box_size * 8)
 
         afrt_bs_box.pos += 8
-        update_flag = afrt_bs_box.read("uint:24")
+        update_flag = afrt_bs_box.read("uintbe:24")
         afrt.update = True if update_flag == 1 else False
 
-        afrt.time_scale = afrt_bs_box.read("uint:32")
+        afrt.time_scale = afrt_bs_box.read("uintbe:32")
         afrt.quality_fragment_url_modifiers = Parser.read_count_and_string_table(afrt_bs_box)
 
-        fragment_count = afrt_bs_box.read("uint:32")
+        fragment_count = afrt_bs_box.read("uintbe:32")
 
         afrt.fragments = []
 
         for _ in range(0, fragment_count):
-            first_fragment = afrt_bs_box.read("uint:32")
-            first_fragment_timestamp_raw = afrt_bs_box.read("uint:64")
+            first_fragment = afrt_bs_box.read("uintbe:32")
+            first_fragment_timestamp_raw = afrt_bs_box.read("uintbe:64")
 
             try:
                 first_fragment_timestamp = datetime.utcfromtimestamp(
@@ -320,10 +320,10 @@ class FragmentRunTable(AbstractTable, MixinDictRepr):
                 # Elemental sometimes create odd timestamps
                 first_fragment_timestamp = None
 
-            fragment_duration = afrt_bs_box.read("uint:32")
+            fragment_duration = afrt_bs_box.read("uintbe:32")
 
             if fragment_duration == 0:
-                discontinuity_indicator = afrt_bs_box.read("uint:8")
+                discontinuity_indicator = afrt_bs_box.read("uintbe:8")
             else:
                 discontinuity_indicator = None
 
@@ -501,7 +501,7 @@ class Parser(object):
     def read_count_and_string_table(cls, bs):
         """ Read a count then return the strings in a list """
         result = []
-        entry_count = bs.read("uint:8")
+        entry_count = bs.read("uintbe:8")
         for _ in range(0, entry_count):
             result.append(cls.read_string(bs))
         return result
@@ -509,7 +509,7 @@ class Parser(object):
     @staticmethod
     def read_box_header(bs):
         header_start_pos = bs.bytepos
-        size, box_type = bs.readlist("uint:32, bytes:4")
+        size, box_type = bs.readlist("uintbe:32, bytes:4")
 
         # box_type should be an ASCII string. Decode as UTF-8 in case
         try:
@@ -521,7 +521,7 @@ class Parser(object):
         # if size == 1, then this is an extended size type.
         # Therefore read the next 64 bits as size
         if size == 1:
-            size = bs.read("uint:64")
+            size = bs.read("uintbe:64")
         header_end_pos = bs.bytepos
         header_size = header_end_pos - header_start_pos
 
@@ -530,7 +530,7 @@ class Parser(object):
 
     @staticmethod
     def parse_time_field(bs, scale):
-        timestamp = bs.read("uint:64")
+        timestamp = bs.read("uintbe:64")
         return datetime.utcfromtimestamp(timestamp / float(scale))
 
 
