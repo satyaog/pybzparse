@@ -1,5 +1,6 @@
 """ Benzina MP4 Parser based on https://github.com/use-sparingly/pymp4parse """
 
+from abc import ABCMeta, abstractmethod
 import bitstring
 from datetime import datetime
 from collections import namedtuple
@@ -23,24 +24,75 @@ class MixinMinimalRepr(object):
                                                     content=self.__dict__.keys())
 
 
-class FragmentRunTableBox(MixinDictRepr):
-    pass
+class AbstractBox(metaclass=ABCMeta):
+    def __init__(self):
+        self.header = None
+
+    @staticmethod
+    @abstractmethod
+    def parse(bs, header):
+        raise NotImplemented()
 
 
-class UnImplementedBox(MixinDictRepr):
-    type = "na"
-    pass
+class AbstractTable(metaclass=ABCMeta):
+    @staticmethod
+    @abstractmethod
+    def parse(bs):
+        raise NotImplemented()
 
 
-class MovieFragmentBox(MixinDictRepr):
+# class FragmentRunTableBox(AbstractBox, MixinDictRepr):
+#     pass
+
+
+class UnknownBox(AbstractBox, MixinDictRepr):
+    type = "unkn"
+
+    @staticmethod
+    def parse(bs, header):
+        unkown = UnknownBox()
+        unkown.header = header
+
+        bs.bytepos += header.box_size
+
+        return unkown
+
+
+class MovieFragmentBox(AbstractBox, MixinDictRepr):
     type = "moof"
 
+    @staticmethod
+    def parse(bootstrap_bs, header):
+        moof = MovieFragmentBox()
+        moof.header = header
 
-class BootStrapInfoBox(MixinDictRepr):
+        box_bs = bootstrap_bs.read(moof.header.box_size * 8)
+
+        for child_box in Parser.parse(bytes_input=box_bs.bytes):
+            setattr(moof, child_box.type, child_box)
+
+        return moof
+
+
+class BootStrapInfoBox(AbstractBox, MixinDictRepr):
     type = "abst"
 
     def __init__(self):
         super(BootStrapInfoBox, self).__init__()
+        self.version = None
+        self.profile_raw = None
+        self.live = None
+        self.update = None
+        self.time_scale = None
+        self.current_media_time = None
+        self.smpte_timecode_offset = None
+        self.movie_identifier = None
+        self.server_entry_table = None
+        self.quality_entry_table = None
+        self.drm_data = None
+        self.meta_data = None
+        self.segment_run_tables = None
+        self.fragment_tables = None
         self._current_media_time = None
 
     @property
@@ -53,8 +105,46 @@ class BootStrapInfoBox(MixinDictRepr):
         self._current_media_time = \
             datetime.utcfromtimestamp(epoch_timestamp / float(self.time_scale))
 
+    @staticmethod
+    def parse(bootstrap_bs, header):
+        abst = BootStrapInfoBox()
+        abst.header = header
 
-class FragmentRandomAccessBox(MixinDictRepr):
+        box_bs = bootstrap_bs.read(abst.header.box_size * 8)
+
+        abst.version, abst.profile_raw, abst.live, abst.update, \
+            abst.time_scale, abst.current_media_time, abst.smpte_timecode_offset = \
+            box_bs.readlist("""pad:8, pad:24,
+                               uint:32, uint:2, bool, bool,
+                               pad:4,
+                               uint:32, uint:64, uint:64""")
+        abst.movie_identifier = Parser.read_string(box_bs)
+
+        abst.server_entry_table = Parser.read_count_and_string_table(box_bs)
+        abst.quality_entry_table = Parser.read_count_and_string_table(box_bs)
+
+        abst.drm_data = Parser.read_string(box_bs)
+        abst.meta_data = Parser.read_string(box_bs)
+
+        abst.segment_run_tables = []
+
+        segment_count = box_bs.read("uint:8")
+        log.debug("segment_count: %d" % segment_count)
+        for _ in range(0, segment_count):
+            abst.segment_run_tables.append(SegmentRunTable.parse(box_bs))
+
+        abst.fragment_tables = []
+        fragment_count = box_bs.read("uint:8")
+        log.debug("fragment_count: %d" % fragment_count)
+        for _ in range(0, fragment_count):
+            abst.fragment_tables.append(FragmentRunTable.parse(box_bs))
+
+        log.debug("Finished parsing abst")
+
+        return abst
+
+
+class FragmentRandomAccessBox(AbstractBox, MixinDictRepr):
     """ aka afra """
     type = "afra"
 
@@ -62,18 +152,115 @@ class FragmentRandomAccessBox(MixinDictRepr):
     BoxGlobalEntry = namedtuple("FragmentRandomAccessBoxGlobalEntry",
                                 ["time", "segment_number", "fragment_number",
                                  "afra_offset", "sample_offset"])
-    pass
+
+    def __init__(self):
+        super(FragmentRandomAccessBox, self).__init__()
+        self.time_scale = None
+        self.local_access_entries = None
+        self.global_access_entries = None
+
+    @staticmethod
+    def parse(bs, header):
+        afra = FragmentRandomAccessBox()
+        afra.header = header
+
+        # read the entire box in case there's padding
+        afra_bs = bs.read(header.box_size * 8)
+        # skip Version and Flags
+        afra_bs.pos += 8 + 24
+        long_ids, long_offsets, global_entries, afra.time_scale, local_entry_count = \
+            afra_bs.readlist("bool, bool, bool, pad:5, uint:32, uint:32")
+
+        if long_ids:
+            id_bs_type = "uint:32"
+        else:
+            id_bs_type = "uint:16"
+
+        if long_offsets:
+            offset_bs_type = "uint:64"
+        else:
+            offset_bs_type = "uint:32"
+
+        log.debug("local_access_entries entry count: %s", local_entry_count)
+        afra.local_access_entries = []
+        for _ in range(0, local_entry_count):
+            time = Parser.parse_time_field(afra_bs, afra.time_scale)
+
+            offset = afra_bs.read(offset_bs_type)
+
+            afra_entry = FragmentRandomAccessBox.BoxEntry(time=time,
+                                                          offset=offset)
+            afra.local_access_entries.append(afra_entry)
+
+        afra.global_access_entries = []
+
+        if global_entries:
+            global_entry_count = afra_bs.read("uint:32")
+
+            log.debug("global_access_entries entry count: %s", global_entry_count)
+
+            for _ in range(0, global_entry_count):
+                time = Parser.parse_time_field(afra_bs, afra.time_scale)
+
+                segment_number = afra_bs.read(id_bs_type)
+                fragment_number = afra_bs.read(id_bs_type)
+
+                afra_offset = afra_bs.read(offset_bs_type)
+                sample_offset = afra_bs.read(offset_bs_type)
+
+                afra_global_entry = \
+                    FragmentRandomAccessBox.BoxGlobalEntry(
+                        time=time,
+                        segment_number=segment_number,
+                        fragment_number=fragment_number,
+                        afra_offset=afra_offset,
+                        sample_offset=sample_offset)
+
+                afra.global_access_entries.append(afra_global_entry)
+
+        return afra
 
 
-class SegmentRunTable(MixinDictRepr):
+class SegmentRunTable(AbstractTable, MixinDictRepr):
     type = "asrt"
 
     TableEntry = namedtuple("SegmentRunTableEntry", ["first_segment",
                                                      "fragments_per_segment"])
-    pass
+
+    def __init__(self):
+        super(SegmentRunTable, self).__init__()
+        self.update = None
+        self.quality_segment_url_modifiers = None
+        self.segment_run_table_entries = None
+
+    @staticmethod
+    def parse(box_bs):
+        """ Parse asrt / Segment Run Table Box """
+
+        asrt = SegmentRunTable()
+        asrt.header = Parser.read_box_header(box_bs)
+        # read the entire box in case there's padding
+        asrt_bs_box = box_bs.read(asrt.header.box_size * 8)
+
+        asrt_bs_box.pos += 8
+        update_flag = asrt_bs_box.read("uint:24")
+        asrt.update = True if update_flag == 1 else False
+
+        asrt.quality_segment_url_modifiers = Parser.read_count_and_string_table(asrt_bs_box)
+
+        asrt.segment_run_table_entries = []
+        segment_count = asrt_bs_box.read("uint:32")
+
+        for _ in range(0, segment_count):
+            first_segment = asrt_bs_box.read("uint:32")
+            fragments_per_segment = asrt_bs_box.read("uint:32")
+            asrt.segment_run_table_entries.append(
+                SegmentRunTable.TableEntry(first_segment=first_segment,
+                                           fragments_per_segment=fragments_per_segment))
+        return asrt
 
 
-class FragmentRunTable(MixinDictRepr):
+class FragmentRunTable(AbstractTable, MixinDictRepr):
     type = "afrt"
 
     class TableEntry(namedtuple("FragmentRunTableEntry",
@@ -93,27 +280,119 @@ class FragmentRunTable(MixinDictRepr):
                     self.discontinuity_indicator == other.discontinuity_indicator:
                 return True
 
+    def __init__(self):
+        super(FragmentRunTable, self).__init__()
+        self.update = None
+        self.quality_fragment_url_modifiers = None
+        self.fragments = None
+
     def __repr__(self, *args, **kwargs):
         return str(self.__dict__)
 
+    @staticmethod
+    def parse(box_bs):
+        """ Parse afrt / Fragment Run Table Box """
 
-class MediaDataBox(MixinMinimalRepr):
+        afrt = FragmentRunTable()
+        afrt.header = Parser.read_box_header(box_bs)
+        # read the entire box in case there's padding
+        afrt_bs_box = box_bs.read(afrt.header.box_size * 8)
+
+        afrt_bs_box.pos += 8
+        update_flag = afrt_bs_box.read("uint:24")
+        afrt.update = True if update_flag == 1 else False
+
+        afrt.time_scale = afrt_bs_box.read("uint:32")
+        afrt.quality_fragment_url_modifiers = Parser.read_count_and_string_table(afrt_bs_box)
+
+        fragment_count = afrt_bs_box.read("uint:32")
+
+        afrt.fragments = []
+
+        for _ in range(0, fragment_count):
+            first_fragment = afrt_bs_box.read("uint:32")
+            first_fragment_timestamp_raw = afrt_bs_box.read("uint:64")
+
+            try:
+                first_fragment_timestamp = datetime.utcfromtimestamp(
+                    first_fragment_timestamp_raw / float(afrt.time_scale))
+            except ValueError:
+                # Elemental sometimes create odd timestamps
+                first_fragment_timestamp = None
+
+            fragment_duration = afrt_bs_box.read("uint:32")
+
+            if fragment_duration == 0:
+                discontinuity_indicator = afrt_bs_box.read("uint:8")
+            else:
+                discontinuity_indicator = None
+
+            frte = FragmentRunTable.TableEntry(first_fragment=first_fragment,
+                                               first_fragment_timestamp=first_fragment_timestamp,
+                                               fragment_duration=fragment_duration,
+                                               discontinuity_indicator=discontinuity_indicator)
+            afrt.fragments.append(frte)
+        return afrt
+
+
+class MediaDataBox(AbstractBox, MixinMinimalRepr):
     """ aka mdat """
     type = "mdat"
 
+    def __init__(self):
+        super(MediaDataBox, self).__init__()
+        self.payload = None
 
-class MovieFragmentHeader(MixinDictRepr):
+    @staticmethod
+    def parse(box_bs, header):
+        """ Parse afrt / Fragment Run Table Box """
+
+        mdat = MediaDataBox()
+        mdat.header = header
+        mdat.payload = box_bs.read(mdat.header.box_size * 8).bytes
+        return mdat
+
+
+class MovieFragmentHeader(AbstractBox, MixinDictRepr):
     type = "mfhd"
 
+    @staticmethod
+    def parse(bootstrap_bs, header):
+        mfhd = MovieFragmentHeader()
+        mfhd.header = header
 
-class ProtectionSystemSpecificHeader(MixinDictRepr):
+        # skip box_bs
+        _ = bootstrap_bs.read(mfhd.header.box_size * 8)
+        return mfhd
+
+
+class ProtectionSystemSpecificHeader(AbstractBox, MixinDictRepr):
     type = "pssh"
+
+    def __init__(self):
+        super(ProtectionSystemSpecificHeader, self).__init__()
+        self.payload = None
+
+    @staticmethod
+    def parse(bootstrap_bs, header):
+        pssh = ProtectionSystemSpecificHeader()
+        pssh.header = header
+
+        box_bs = bootstrap_bs.read(pssh.header.box_size * 8)
+        # Payload appears to be 8 bytes in.
+        pssh.payload = box_bs.bytes[8:]
+        return pssh
 
 
 BoxHeader = namedtuple("BoxHeader", ["box_size", "box_type", "header_size"])
 
 
 class Parser(object):
+    _box_lookup = {}
+
+    @classmethod
+    def register_box(cls, box_cls):
+        cls._box_lookup[box_cls.type] = box_cls.parse
 
     @classmethod
     def parse(cls, filename=None, bytes_input=None, file_input=None,
@@ -134,15 +413,6 @@ class Parser(object):
         :return: BMFF Boxes or Headers
         """
 
-        box_lookup = {
-            BootStrapInfoBox.type: cls._parse_abst,
-            FragmentRandomAccessBox.type: cls._parse_afra,
-            MediaDataBox.type: cls._parse_mdat,
-            MovieFragmentBox.type: cls._parse_moof,
-            MovieFragmentHeader.type: cls._parse_mfhd,
-            ProtectionSystemSpecificHeader.type: cls._parse_pssh
-        }
-
         if filename:
             bs = bitstring.ConstBitStream(filename=filename, offset=offset_bytes * 8)
         elif bytes_input:
@@ -157,7 +427,7 @@ class Parser(object):
             log.debug("Byte pos before header: %d relative to (%d)", bs.bytepos, offset_bytes)
             log.debug("Reading header")
             try:
-                header = cls._read_box_header(bs)
+                header = cls.read_box_header(bs)
             except bitstring.ReadError:
                 log.error("Premature end of data while reading box header")
                 raise
@@ -176,7 +446,7 @@ class Parser(object):
                     raise
             else:
                 # Get parser method for header type
-                parse_function = box_lookup.get(header.box_type, cls._parse_unimplemented)
+                parse_function = cls._box_lookup.get(header.box_type, UnknownBox.parse)
                 try:
                     yield parse_function(bs, header)
                 except ValueError:
@@ -222,22 +492,22 @@ class Parser(object):
         return cls._is_mp4(parser)
 
     @staticmethod
-    def _read_string(bs):
+    def read_string(bs):
         """ read UTF8 null terminated string """
         result = bs.readto('0x00', bytealigned=True).bytes.decode("utf-8")[:-1]
         return result if result else None
 
     @classmethod
-    def _read_count_and_string_table(cls, bs):
+    def read_count_and_string_table(cls, bs):
         """ Read a count then return the strings in a list """
         result = []
         entry_count = bs.read("uint:8")
         for _ in range(0, entry_count):
-            result.append(cls._read_string(bs))
+            result.append(cls.read_string(bs))
         return result
 
     @staticmethod
-    def _read_box_header(bs):
+    def read_box_header(bs):
         header_start_pos = bs.bytepos
         size, box_type = bs.readlist("uint:32, bytes:4")
 
@@ -259,225 +529,32 @@ class Parser(object):
                          header_size=header_size)
 
     @staticmethod
-    def _parse_unimplemented(bs, header):
-        ui = UnImplementedBox()
-        ui.header = header
-
-        bs.bytepos += header.box_size
-
-        return ui
-
-    @classmethod
-    def _parse_afra(cls, bs, header):
-
-        afra = FragmentRandomAccessBox()
-        afra.header = header
-
-        # read the entire box in case there's padding
-        afra_bs = bs.read(header.box_size * 8)
-        # skip Version and Flags
-        afra_bs.pos += 8 + 24
-        long_ids, long_offsets, global_entries, afra.time_scale, local_entry_count = \
-            afra_bs.readlist("bool, bool, bool, pad:5, uint:32, uint:32")
-
-        if long_ids:
-            id_bs_type = "uint:32"
-        else:
-            id_bs_type = "uint:16"
-
-        if long_offsets:
-            offset_bs_type = "uint:64"
-        else:
-            offset_bs_type = "uint:32"
-
-        log.debug("local_access_entries entry count: %s", local_entry_count)
-        afra.local_access_entries = []
-        for _ in range(0, local_entry_count):
-            time = cls._parse_time_field(afra_bs, afra.time_scale)
-
-            offset = afra_bs.read(offset_bs_type)
-
-            afra_entry = FragmentRandomAccessBox.BoxEntry(time=time,
-                                                          offset=offset)
-            afra.local_access_entries.append(afra_entry)
-
-        afra.global_access_entries = []
-
-        if global_entries:
-            global_entry_count = afra_bs.read("uint:32")
-
-            log.debug("global_access_entries entry count: %s", global_entry_count)
-
-            for _ in range(0, global_entry_count):
-                time = cls._parse_time_field(afra_bs, afra.time_scale)
-
-                segment_number = afra_bs.read(id_bs_type)
-                fragment_number = afra_bs.read(id_bs_type)
-
-                afra_offset = afra_bs.read(offset_bs_type)
-                sample_offset = afra_bs.read(offset_bs_type)
-
-                afra_global_entry = \
-                    FragmentRandomAccessBox.BoxGlobalEntry(
-                        time=time,
-                        segment_number=segment_number,
-                        fragment_number=fragment_number,
-                        afra_offset=afra_offset,
-                        sample_offset=sample_offset)
-
-                afra.global_access_entries.append(afra_global_entry)
-
-        return afra
-
-    @classmethod
-    def _parse_moof(cls, bootstrap_bs, header):
-        moof = MovieFragmentBox()
-        moof.header = header
-
-        box_bs = bootstrap_bs.read(moof.header.box_size * 8)
-
-        for child_box in cls.parse(bytes_input=box_bs.bytes):
-            setattr(moof, child_box.type, child_box)
-
-        return moof
-
-    @classmethod
-    def _parse_mfhd(cls, bootstrap_bs, header):
-        mfhd = MovieFragmentHeader()
-        mfhd.header = header
-
-        _ = bootstrap_bs.read(mfhd.header.box_size * 8)
-        return mfhd
-
-    @staticmethod
-    def _parse_pssh(bootstrap_bs, header):
-        pssh = ProtectionSystemSpecificHeader()
-        pssh.header = header
-
-        box_bs = bootstrap_bs.read(pssh.header.box_size * 8)
-        # Payload appears to be 8 bytes in.
-        pssh.payload = box_bs.bytes[8:]
-        return pssh
-
-    @classmethod
-    def _parse_abst(cls, bootstrap_bs, header):
-
-        abst = BootStrapInfoBox()
-        abst.header = header
-
-        box_bs = bootstrap_bs.read(abst.header.box_size * 8)
-
-        abst.version, abst.profile_raw, abst.live, abst.update, \
-            abst.time_scale, abst.current_media_time, abst.smpte_timecode_offset = \
-            box_bs.readlist("""pad:8, pad:24, uint:32, uint:2, bool, bool,
-                               pad:4,
-                               uint:32, uint:64, uint:64""")
-        abst.movie_identifier = cls._read_string(box_bs)
-
-        abst.server_entry_table = cls._read_count_and_string_table(box_bs)
-        abst.quality_entry_table = cls._read_count_and_string_table(box_bs)
-
-        abst.drm_data = cls._read_string(box_bs)
-        abst.meta_data = cls._read_string(box_bs)
-
-        abst.segment_run_tables = []
-
-        segment_count = box_bs.read("uint:8")
-        log.debug("segment_count: %d" % segment_count)
-        for _ in range(0, segment_count):
-            abst.segment_run_tables.append(cls._parse_asrt(box_bs))
-
-        abst.fragment_tables = []
-        fragment_count = box_bs.read("uint:8")
-        log.debug("fragment_count: %d" % fragment_count)
-        for _ in range(0, fragment_count):
-            abst.fragment_tables.append(cls._parse_afrt(box_bs))
-
-        log.debug("Finished parsing abst")
-
-        return abst
-
-    @classmethod
-    def _parse_asrt(cls, box_bs):
-        """ Parse asrt / Segment Run Table Box """
-
-        asrt = SegmentRunTable()
-        asrt.header = cls._read_box_header(box_bs)
-        # read the entire box in case there's padding
-        asrt_bs_box = box_bs.read(asrt.header.box_size * 8)
-
-        asrt_bs_box.pos += 8
-        update_flag = asrt_bs_box.read("uint:24")
-        asrt.update = True if update_flag == 1 else False
-
-        asrt.quality_segment_url_modifiers = cls._read_count_and_string_table(asrt_bs_box)
-
-        asrt.segment_run_table_entries = []
-        segment_count = asrt_bs_box.read("uint:32")
-
-        for _ in range(0, segment_count):
-            first_segment = asrt_bs_box.read("uint:32")
-            fragments_per_segment = asrt_bs_box.read("uint:32")
-            asrt.segment_run_table_entries.append(
-                SegmentRunTable.TableEntry(first_segment=first_segment,
-                                           fragments_per_segment=fragments_per_segment))
-        return asrt
-
-    @classmethod
-    def _parse_afrt(cls, box_bs):
-        """ Parse afrt / Fragment Run Table Box """
-
-        afrt = FragmentRunTable()
-        afrt.header = cls._read_box_header(box_bs)
-        # read the entire box in case there's padding
-        afrt_bs_box = box_bs.read(afrt.header.box_size * 8)
-
-        afrt_bs_box.pos += 8
-        update_flag = afrt_bs_box.read("uint:24")
-        afrt.update = True if update_flag == 1 else False
-
-        afrt.time_scale = afrt_bs_box.read("uint:32")
-        afrt.quality_fragment_url_modifiers = cls._read_count_and_string_table(afrt_bs_box)
-
-        fragment_count = afrt_bs_box.read("uint:32")
-
-        afrt.fragments = []
-
-        for _ in range(0, fragment_count):
-            first_fragment = afrt_bs_box.read("uint:32")
-            first_fragment_timestamp_raw = afrt_bs_box.read("uint:64")
-
-            try:
-                first_fragment_timestamp = datetime.utcfromtimestamp(
-                    first_fragment_timestamp_raw / float(afrt.time_scale))
-            except ValueError:
-                # Elemental sometimes create odd timestamps
-                first_fragment_timestamp = None
-
-            fragment_duration = afrt_bs_box.read("uint:32")
-
-            if fragment_duration == 0:
-                discontinuity_indicator = afrt_bs_box.read("uint:8")
-            else:
-                discontinuity_indicator = None
-
-            frte = FragmentRunTable.TableEntry(first_fragment=first_fragment,
-                                               first_fragment_timestamp=first_fragment_timestamp,
-                                               fragment_duration=fragment_duration,
-                                               discontinuity_indicator=discontinuity_indicator)
-            afrt.fragments.append(frte)
-        return afrt
-
-    @staticmethod
-    def _parse_mdat(box_bs, header):
-        """ Parse afrt / Fragment Run Table Box """
-
-        mdat = MediaDataBox()
-        mdat.header = header
-        mdat.payload = box_bs.read(mdat.header.box_size * 8).bytes
-        return mdat
-
-    @staticmethod
-    def _parse_time_field(bs, scale):
+    def parse_time_field(bs, scale):
         timestamp = bs.read("uint:64")
         return datetime.utcfromtimestamp(timestamp / float(scale))
+
+
+# =====
+# Boxes
+# =====
+UNKN = UnknownBox
+ABST = BootStrapInfoBox
+AFRA = FragmentRandomAccessBox
+MDAT = MediaDataBox
+MOOF = MovieFragmentBox
+MFHD = MovieFragmentHeader
+PSSH = ProtectionSystemSpecificHeader
+
+# ======
+# Tables
+# ======
+ASRT = SegmentRunTable
+AFRT = FragmentRunTable
+
+
+Parser.register_box(BootStrapInfoBox)
+Parser.register_box(FragmentRandomAccessBox)
+Parser.register_box(MediaDataBox)
+Parser.register_box(MovieFragmentBox)
+Parser.register_box(MovieFragmentHeader)
+Parser.register_box(ProtectionSystemSpecificHeader)
