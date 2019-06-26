@@ -2,13 +2,14 @@
 
 from bitstring import pack
 
+import fieldslists as flists
 import pybzparse as parse
 from pybzparse import Parser
 
 
 def test_header_fields_list():
     bs = pack("uintbe:32, bytes:4", 100, b'abcd')
-    fields_list = parse.BoxHeaderFieldsList()
+    fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 100
@@ -20,7 +21,7 @@ def test_header_fields_list():
 
 def test_header_extended_fields_list():
     bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b'abcd', parse.MAX_UINT_32 + 1)
-    fields_list = parse.BoxHeaderFieldsList()
+    fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 1
@@ -33,7 +34,7 @@ def test_header_extended_fields_list():
 def test_header_user_type_fields_list():
     bs = pack("uintbe:32, bytes:4, bytes:16", 100, b'uuid',
               b':benzina\x00\x00\x00\x00\x00\x00\x00\x00')
-    fields_list = parse.BoxHeaderFieldsList()
+    fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 100
@@ -46,7 +47,7 @@ def test_header_user_type_fields_list():
 def test_header_extended_user_type_fields_list():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b'uuid',
               parse.MAX_UINT_32 + 1, b':benzina\x00\x00\x00\x00\x00\x00\x00\x00')
-    fields_list = parse.BoxHeaderFieldsList()
+    fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 1
