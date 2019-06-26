@@ -6,28 +6,21 @@ Parses out and returns a limited set of MP4 boxes
 
 ## Parse boxes
 
-    import pymp4parse
+    import bitstring as bs
+
+    import pybzparse
     
-    boxes = pymp4parse.F4VParser.parse(filename='my.mp4')
+    bstr = bs.ConstBitStream(filename='my.mp4')
+    boxes = pybzparse.Parser.parse(filename='my.mp4')
     for box in boxes:
-        print box.type
-        print dir(box)
+        print box.header.type
+        # Load the box content in memory
+        box.load(bstr)
 
 ## Check is MP4 file
 Reads the first box header at byte 0. Returns `False` if box header does not exist or is invalid  
 
-    >>> pymp4parse.F4VParser.is_mp4(filename='my.mp4')
+    >>> pybzparse.Parser.is_mp4(filename='my.mp4')
     True
-    >>> pymp4parse.F4VParser.is_mp4(filename='/etc/resolv.conf')
+    >>> pybzparse.Parser.is_mp4(filename='/etc/resolv.conf')
     False
-    
-
-## Installation
-
-    pip install https://github.com/use-sparingly/mp4parse/zipball/master
-
-### Prerequisites
-Pip should install prerequisites. In case you're manually installing, you'll need:
-
-1. Bitstring - https://pypi.python.org/pypi/bitstring/
-
