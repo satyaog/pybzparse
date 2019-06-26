@@ -1,13 +1,56 @@
 """ Benzina MP4 Parser based on https://github.com/use-sparingly/pymp4parse """
 
 from abc import ABCMeta, abstractmethod
-import bitstring
-from datetime import datetime
-from collections import namedtuple
+from ctypes import c_uint32
 import logging
+
+import bitstring as bs
+
+from fieldslists import *
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARN)
+
+MAX_UINT_32 = c_uint32(-1).value
+
+
+class AbstractBox(metaclass=ABCMeta):
+    def __init__(self, header):
+        self._header = header
+
+    def __bytes__(self):
+        return bytes(self._header)
+
+    @property
+    def header(self):
+        return self._header
+
+    @header.setter
+    def header(self, value):
+        self._header = value
+
+    @abstractmethod
+    def load(self, bstr):
+        raise NotImplemented()
+
+    @abstractmethod
+    def parse(self, bstr):
+        raise NotImplemented()
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        box = cls(header)
+        box.parse(bstr)
+        return box
+
+
+class AbstractFullBox(AbstractBox, metaclass=ABCMeta):
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(AbstractFullBox, cls).parse_box(bstr, full_box_header)
 
 
 class MixinDictRepr(object):
@@ -24,367 +67,294 @@ class MixinMinimalRepr(object):
                                                     content=self.__dict__.keys())
 
 
-class AbstractBox(metaclass=ABCMeta):
-    def __init__(self):
-        self.header = None
+class BoxHeader(BoxHeaderFieldsList):
+    def __init__(self, length=4):
+        self._start_pos = None
+        self._type_cache = None
+        self._box_size_cache = None
+        self._header_size_cache = None
+        self._content_size_cache = None
+        super(BoxHeader, self).__init__(length)
 
-    @staticmethod
-    @abstractmethod
-    def parse(bs, header):
-        raise NotImplemented()
+    @property
+    def start_pos(self):
+        return self._start_pos
+
+    @property
+    def type(self):
+        return self._type_cache
+
+    @property
+    def box_size(self):
+        return self._box_size_cache
+
+    @property
+    def header_size(self):
+        return self._header_size_cache
+
+    @property
+    def content_size(self):
+        return self._content_size_cache
+
+    def parse(self, bstr):
+        self._start_pos = bstr.bytepos
+        self.parse_fields(bstr)
+        self._update_cache(bstr.bytepos - self._start_pos)
+
+    def _update_cache(self, header_size):
+        self._type_cache = (self._box_type.value + self._user_type.value
+                            if self._user_type.value is not None
+                            else self._box_type.value)
+        self._box_size_cache = (self._box_ext_size.value
+                                if self._box_ext_size.value is not None
+                                else self._box_size.value)
+        self._header_size_cache = header_size
+        self._content_size_cache = self._box_size_cache - header_size
 
 
-class AbstractTable(metaclass=ABCMeta):
-    @staticmethod
-    @abstractmethod
-    def parse(bs):
-        raise NotImplemented()
+class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList):
+    def __init__(self, length=6):
+        FullBoxHeaderFieldsList.__init__(self, length)
+        super(FullBoxHeader, self).__init__(length)
 
+    def parse_fields(self, bstr):
+        super(FullBoxHeader, self).parse_fields(bstr)
+        self._parse_extend_fields(bstr)
 
-# class FragmentRunTableBox(AbstractBox, MixinDictRepr):
-#     pass
+    def extend_header(self, bstr, header):
+        self._set_field(self._box_size, header.box_size)
+        self._set_field(self._box_type, header.box_type)
+        self._set_field(self._box_ext_size, header.box_ext_size)
+        self._set_field(self._user_type, header.user_type)
+
+        self._start_pos = header.start_pos
+        self._parse_extend_fields(bstr)
+        self._update_cache(bstr.bytepos - self._start_pos)
+
+    def _parse_extend_fields(self, bstr):
+        FullBoxHeaderFieldsList.parse_fields(self, bstr)
 
 
 class UnknownBox(AbstractBox, MixinDictRepr):
-    type = "unkn"
+    type = b"unkn"
 
-    @staticmethod
-    def parse(bs, header):
-        unkown = UnknownBox()
-        unkown.header = header
+    def __init__(self, header):
+        super(UnknownBox, self).__init__(header)
+        self.payload = None
 
-        bs.bytepos += header.box_size
+    def __bytes__(self):
+        return super(UnknownBox, self).__bytes__() + \
+               self.payload
 
-        return unkown
+    def load(self, bstr):
+        bstr.bytepos = self.header.start_pos + self.header.header_size
+        self.payload = bstr.read(self.header.content_size * 8).bytes
 
-
-class MovieFragmentBox(AbstractBox, MixinDictRepr):
-    type = "moof"
-
-    @staticmethod
-    def parse(bootstrap_bs, header):
-        moof = MovieFragmentBox()
-        moof.header = header
-
-        box_bs = bootstrap_bs.read(moof.header.box_size * 8)
-
-        for child_box in Parser.parse(bytes_input=box_bs.bytes):
-            setattr(moof, child_box.type, child_box)
-
-        return moof
+    def parse(self, bstr):
+        bstr.bytepos = self._header.start_pos + self._header.box_size
 
 
-class BootStrapInfoBox(AbstractBox, MixinDictRepr):
-    type = "abst"
+class ContainerBox(AbstractBox, MixinDictRepr):
+    def __init__(self, header):
+        super(ContainerBox, self).__init__(header)
+        self._boxes = None
 
-    def __init__(self):
-        super(BootStrapInfoBox, self).__init__()
-        self.version = None
-        self.profile_raw = None
-        self.live = None
-        self.update = None
-        self.time_scale = None
-        self.current_media_time = None
-        self.smpte_timecode_offset = None
-        self.movie_identifier = None
-        self.server_entry_table = None
-        self.quality_entry_table = None
-        self.drm_data = None
-        self.meta_data = None
-        self.segment_run_tables = None
-        self.fragment_tables = None
-        self._current_media_time = None
+    def __bytes__(self):
+        bytes_buffer = [super(ContainerBox, self).__bytes__()]
+        bytes_buffer.extend([bytes(box) for box in self._boxes])
+        return b''.join(bytes_buffer)
 
     @property
-    def current_media_time(self):
-        return self._current_media_time
-
-    @current_media_time.setter
-    def current_media_time(self, epoch_timestamp):
-        """ Takes a timestamp arg and saves it as datetime """
-        self._current_media_time = \
-            datetime.utcfromtimestamp(epoch_timestamp / float(self.time_scale))
+    def boxes(self):
+        return self._boxes
 
-    @staticmethod
-    def parse(bootstrap_bs, header):
-        abst = BootStrapInfoBox()
-        abst.header = header
+    def load(self, bstr):
+        bstr.bitpos = self.header.start_pos + self.header.header_size
+        for box in self._boxes:
+            box.load(bstr)
 
-        box_bs = bootstrap_bs.read(abst.header.box_size * 8)
+    def parse(self, bstr):
+        self.parse_boxes(bstr)
 
-        abst.version, abst.profile_raw, abst.live, abst.update, \
-            abst.time_scale, abst.current_media_time, abst.smpte_timecode_offset = \
-            box_bs.readlist("""pad:8, pad:24,
-                               uintbe:32, uintbe:2, bool, bool,
-                               pad:4,
-                               uintbe:32, uintbe:64, uintbe:64""")
-        abst.movie_identifier = Parser.read_string(box_bs)
+    def parse_boxes(self, bstr):
+        self._boxes = []
+        end_pos = self._header.start_pos + self._header.box_size
+        while bstr.bytepos < end_pos:
+            header = Parser.parse_header(bstr)
+            self._boxes.append(Parser.parse_box(bstr, header))
 
-        abst.server_entry_table = Parser.read_count_and_string_table(box_bs)
-        abst.quality_entry_table = Parser.read_count_and_string_table(box_bs)
 
-        abst.drm_data = Parser.read_string(box_bs)
-        abst.meta_data = Parser.read_string(box_bs)
+class FileTypeBox(AbstractBox, FileTypeBoxFieldsList, MixinDictRepr):
+    type = b"ftyp"
 
-        abst.segment_run_tables = []
+    def __init__(self, header):
+        FileTypeBoxFieldsList.__init__(self)
+        super(FileTypeBox, self).__init__(header)
 
-        segment_count = box_bs.read("uintbe:8")
-        log.debug("segment_count: %d" % segment_count)
-        for _ in range(0, segment_count):
-            abst.segment_run_tables.append(SegmentRunTable.parse(box_bs))
+    def __bytes__(self):
+        return super(FileTypeBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
-        abst.fragment_tables = []
-        fragment_count = box_bs.read("uintbe:8")
-        log.debug("fragment_count: %d" % fragment_count)
-        for _ in range(0, fragment_count):
-            abst.fragment_tables.append(FragmentRunTable.parse(box_bs))
+    def load(self, bstr):
+        pass
 
-        log.debug("Finished parsing abst")
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
 
-        return abst
 
+class MovieBox(ContainerBox, MixinDictRepr):
+    type = b"moov"
 
-class FragmentRandomAccessBox(AbstractBox, MixinDictRepr):
-    """ aka afra """
-    type = "afra"
 
-    BoxEntry = namedtuple("FragmentRandomAccessBoxEntry", ["time", "offset"])
-    BoxGlobalEntry = namedtuple("FragmentRandomAccessBoxGlobalEntry",
-                                ["time", "segment_number", "fragment_number",
-                                 "afra_offset", "sample_offset"])
+class MovieHeaderBox(AbstractFullBox, MovieHeaderBoxFieldsList, MixinDictRepr):
+    type = b"mvhd"
 
-    def __init__(self):
-        super(FragmentRandomAccessBox, self).__init__()
-        self.time_scale = None
-        self.local_access_entries = None
-        self.global_access_entries = None
+    def __init__(self, header):
+        MovieHeaderBoxFieldsList.__init__(self)
+        super(MovieHeaderBox, self).__init__(header)
 
-    @staticmethod
-    def parse(bs, header):
-        afra = FragmentRandomAccessBox()
-        afra.header = header
+    def __bytes__(self):
+        return super(MovieHeaderBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
-        # read the entire box in case there's padding
-        afra_bs = bs.read(header.box_size * 8)
-        # skip Version and Flags
-        afra_bs.pos += 8 + 24
-        long_ids, long_offsets, global_entries, afra.time_scale, local_entry_count = \
-            afra_bs.readlist("bool, bool, bool, pad:5, uintbe:32, uintbe:32")
+    def load(self, bstr):
+        pass
 
-        if long_ids:
-            id_bs_type = "uintbe:32"
-        else:
-            id_bs_type = "uintbe:16"
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
 
-        if long_offsets:
-            offset_bs_type = "uintbe:64"
-        else:
-            offset_bs_type = "uintbe:32"
 
-        log.debug("local_access_entries entry count: %s", local_entry_count)
-        afra.local_access_entries = []
-        for _ in range(0, local_entry_count):
-            time = Parser.parse_time_field(afra_bs, afra.time_scale)
-
-            offset = afra_bs.read(offset_bs_type)
-
-            afra_entry = FragmentRandomAccessBox.BoxEntry(time=time,
-                                                          offset=offset)
-            afra.local_access_entries.append(afra_entry)
-
-        afra.global_access_entries = []
-
-        if global_entries:
-            global_entry_count = afra_bs.read("uintbe:32")
-
-            log.debug("global_access_entries entry count: %s", global_entry_count)
+class TrackBox(ContainerBox, MixinDictRepr):
+    type = b"trak"
 
-            for _ in range(0, global_entry_count):
-                time = Parser.parse_time_field(afra_bs, afra.time_scale)
-
-                segment_number = afra_bs.read(id_bs_type)
-                fragment_number = afra_bs.read(id_bs_type)
 
-                afra_offset = afra_bs.read(offset_bs_type)
-                sample_offset = afra_bs.read(offset_bs_type)
+class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
+    type = b"tkhd"
 
-                afra_global_entry = \
-                    FragmentRandomAccessBox.BoxGlobalEntry(
-                        time=time,
-                        segment_number=segment_number,
-                        fragment_number=fragment_number,
-                        afra_offset=afra_offset,
-                        sample_offset=sample_offset)
+    def __init__(self, header):
+        TrackHeaderBoxFieldsList.__init__(self)
+        super(TrackHeaderBox, self).__init__(header)
 
-                afra.global_access_entries.append(afra_global_entry)
+    def __bytes__(self):
+        return super(TrackHeaderBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
-        return afra
+    @property
+    def width(self):
+        return self._width.value[0]
 
+    @property
+    def height(self):
+        return self._height.value[0]
 
-class SegmentRunTable(AbstractTable, MixinDictRepr):
-    type = "asrt"
+    @property
+    def is_audio(self):
+        return self._volume.value == 1
 
-    TableEntry = namedtuple("SegmentRunTableEntry", ["first_segment",
-                                                     "fragments_per_segment"])
+    def load(self, bstr):
+        pass
 
-    def __init__(self):
-        super(SegmentRunTable, self).__init__()
-        self.update = None
-        self.quality_segment_url_modifiers = None
-        self.segment_run_table_entries = None
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
 
-    @staticmethod
-    def parse(box_bs):
-        """ Parse asrt / Segment Run Table Box """
 
-        asrt = SegmentRunTable()
-        asrt.header = Parser.read_box_header(box_bs)
-        # read the entire box in case there's padding
-        asrt_bs_box = box_bs.read(asrt.header.box_size * 8)
+class MediaBox(ContainerBox, MixinDictRepr):
+    type = b"mdia"
 
-        asrt_bs_box.pos += 8
-        update_flag = asrt_bs_box.read("uintbe:24")
-        asrt.update = True if update_flag == 1 else False
 
-        asrt.quality_segment_url_modifiers = Parser.read_count_and_string_table(asrt_bs_box)
+class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
+    type = b"mdhd"
 
-        asrt.segment_run_table_entries = []
-        segment_count = asrt_bs_box.read("uintbe:32")
+    def __init__(self, header):
+        MediaHeaderBoxFieldsList.__init__(self)
+        super(MediaHeaderBox, self).__init__(header)
 
-        for _ in range(0, segment_count):
-            first_segment = asrt_bs_box.read("uintbe:32")
-            fragments_per_segment = asrt_bs_box.read("uintbe:32")
-            asrt.segment_run_table_entries.append(
-                SegmentRunTable.TableEntry(first_segment=first_segment,
-                                           fragments_per_segment=fragments_per_segment))
-        return asrt
+    def __bytes__(self):
+        return super(MediaHeaderBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
+    def load(self, bstr):
+        pass
 
-class FragmentRunTable(AbstractTable, MixinDictRepr):
-    type = "afrt"
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
 
-    class TableEntry(namedtuple("FragmentRunTableEntry",
-                                ["first_fragment",
-                                 "first_fragment_timestamp",
-                                 "fragment_duration",
-                                 "discontinuity_indicator"])):
-        DI_END_OF_PRESENTATION = 0
-        DI_NUMBERING = 1
-        DI_TIMESTAMP = 2
-        DI_TIMESTAMP_AND_NUMBER = 3
 
-        def __eq__(self, other):
-            if self.first_fragment == other.first_fragment and \
-                    self.first_fragment_timestamp == other.first_fragment_timestamp and \
-                    self.fragment_duration == other.fragment_duration and \
-                    self.discontinuity_indicator == other.discontinuity_indicator:
-                return True
+class HandlerReferenceBox(AbstractFullBox, HandlerReferenceBoxFieldsList, MixinDictRepr):
+    type = b"hdlr"
 
-    def __init__(self):
-        super(FragmentRunTable, self).__init__()
-        self.update = None
-        self.quality_fragment_url_modifiers = None
-        self.fragments = None
+    def __init__(self, header):
+        HandlerReferenceBoxFieldsList.__init__(self)
+        super(HandlerReferenceBox, self).__init__(header)
 
-    def __repr__(self, *args, **kwargs):
-        return str(self.__dict__)
+    def __bytes__(self):
+        return super(HandlerReferenceBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
-    @staticmethod
-    def parse(box_bs):
-        """ Parse afrt / Fragment Run Table Box """
+    def load(self, bstr):
+        pass
 
-        afrt = FragmentRunTable()
-        afrt.header = Parser.read_box_header(box_bs)
-        # read the entire box in case there's padding
-        afrt_bs_box = box_bs.read(afrt.header.box_size * 8)
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
 
-        afrt_bs_box.pos += 8
-        update_flag = afrt_bs_box.read("uintbe:24")
-        afrt.update = True if update_flag == 1 else False
 
-        afrt.time_scale = afrt_bs_box.read("uintbe:32")
-        afrt.quality_fragment_url_modifiers = Parser.read_count_and_string_table(afrt_bs_box)
+class MediaInformationBox(ContainerBox, MixinDictRepr):
+    type = b"minf"
 
-        fragment_count = afrt_bs_box.read("uintbe:32")
 
-        afrt.fragments = []
+class VideoMediaHeaderBox(AbstractFullBox, VideoMediaHeaderBoxFieldsList, MixinDictRepr):
+    type = b"vmhd"
 
-        for _ in range(0, fragment_count):
-            first_fragment = afrt_bs_box.read("uintbe:32")
-            first_fragment_timestamp_raw = afrt_bs_box.read("uintbe:64")
+    def __init__(self, header):
+        VideoMediaHeaderBoxFieldsList.__init__(self)
+        super(VideoMediaHeaderBox, self).__init__(header)
 
-            try:
-                first_fragment_timestamp = datetime.utcfromtimestamp(
-                    first_fragment_timestamp_raw / float(afrt.time_scale))
-            except ValueError:
-                # Elemental sometimes create odd timestamps
-                first_fragment_timestamp = None
+    def __bytes__(self):
+        return super(VideoMediaHeaderBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
-            fragment_duration = afrt_bs_box.read("uintbe:32")
+    def load(self, bstr):
+        pass
 
-            if fragment_duration == 0:
-                discontinuity_indicator = afrt_bs_box.read("uintbe:8")
-            else:
-                discontinuity_indicator = None
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
 
-            frte = FragmentRunTable.TableEntry(first_fragment=first_fragment,
-                                               first_fragment_timestamp=first_fragment_timestamp,
-                                               fragment_duration=fragment_duration,
-                                               discontinuity_indicator=discontinuity_indicator)
-            afrt.fragments.append(frte)
-        return afrt
 
+class DataInformationBox(ContainerBox, MixinDictRepr):
+    type = b"dinf"
 
-class MediaDataBox(AbstractBox, MixinMinimalRepr):
-    """ aka mdat """
-    type = "mdat"
 
-    def __init__(self):
-        super(MediaDataBox, self).__init__()
-        self.payload = None
+class SampleTableBox(ContainerBox, MixinDictRepr):
+    type = b"stbl"
 
-    @staticmethod
-    def parse(box_bs, header):
-        """ Parse afrt / Fragment Run Table Box """
 
-        mdat = MediaDataBox()
-        mdat.header = header
-        mdat.payload = box_bs.read(mdat.header.box_size * 8).bytes
-        return mdat
+class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDictRepr):
+    type = b"stsd"
 
+    def __init__(self, header):
+        SampleDescriptionBoxFieldsList.__init__(self)
+        super(SampleDescriptionBox, self).__init__(header)
 
-class MovieFragmentHeader(AbstractBox, MixinDictRepr):
-    type = "mfhd"
+    def __bytes__(self):
+        return super(SampleDescriptionBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
 
-    @staticmethod
-    def parse(bootstrap_bs, header):
-        mfhd = MovieFragmentHeader()
-        mfhd.header = header
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+        self.parse_boxes(bstr)
 
-        # skip box_bs
-        _ = bootstrap_bs.read(mfhd.header.box_size * 8)
-        return mfhd
+    def parse_boxes(self, bstr):
+        self._boxes = []
+        for i in range(self._entry_count.value):
+            header = Parser.parse_header(bstr)
+            self._boxes.append(Parser.parse_box(bstr, header))
 
-
-class ProtectionSystemSpecificHeader(AbstractBox, MixinDictRepr):
-    type = "pssh"
-
-    def __init__(self):
-        super(ProtectionSystemSpecificHeader, self).__init__()
-        self.payload = None
-
-    @staticmethod
-    def parse(bootstrap_bs, header):
-        pssh = ProtectionSystemSpecificHeader()
-        pssh.header = header
-
-        box_bs = bootstrap_bs.read(pssh.header.box_size * 8)
-        # Payload appears to be 8 bytes in.
-        pssh.payload = box_bs.bytes[8:]
-        return pssh
-
-
-BoxHeader = namedtuple("BoxHeader", ["box_size", "box_type", "header_size"])
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(SampleDescriptionBox, cls).parse_box(bstr, full_box_header)
 
 
 class Parser(object):
@@ -392,7 +362,7 @@ class Parser(object):
 
     @classmethod
     def register_box(cls, box_cls):
-        cls._box_lookup[box_cls.type] = box_cls.parse
+        cls._box_lookup[box_cls.type] = box_cls.parse_box
 
     @classmethod
     def parse(cls, filename=None, bytes_input=None, file_input=None,
@@ -414,44 +384,54 @@ class Parser(object):
         """
 
         if filename:
-            bs = bitstring.ConstBitStream(filename=filename, offset=offset_bytes * 8)
+            bstr = bs.ConstBitStream(filename=filename, offset=offset_bytes * 8)
         elif bytes_input:
-            bs = bitstring.ConstBitStream(bytes=bytes_input, offset=offset_bytes * 8)
+            bstr = bs.ConstBitStream(bytes=bytes_input, offset=offset_bytes * 8)
         else:
-            bs = bitstring.ConstBitStream(auto=file_input, offset=offset_bytes * 8)
+            bstr = bs.ConstBitStream(auto=file_input, offset=offset_bytes * 8)
 
         log.debug("Starting parse")
-        log.debug("Size is %d bits", bs.len)
+        log.debug("Size is %d bits", bstr.len)
 
-        while bs.pos < bs.len:
-            log.debug("Byte pos before header: %d relative to (%d)", bs.bytepos, offset_bytes)
+        while bstr.pos < bstr.len:
+            log.debug("Byte pos before header: %d relative to (%d)", bstr.bytepos, offset_bytes)
             log.debug("Reading header")
-            try:
-                header = cls.read_box_header(bs)
-            except bitstring.ReadError:
-                log.error("Premature end of data while reading box header")
-                raise
-
+            header = cls.parse_header(bstr)
             log.debug("Header type: %s", header.box_type)
-            log.debug("Byte pos after header: %d relative to (%d)", bs.bytepos, offset_bytes)
+            log.debug("Byte pos after header: %d relative to (%d)", bstr.bytepos, offset_bytes)
 
             if headers_only:
                 yield header
 
                 # move pointer to next header if possible
                 try:
-                    bs.bytepos += header.box_size
+                    bstr.bytepos = header.start_pos + header.box_size
                 except ValueError:
                     log.warning("Premature end of data")
                     raise
             else:
-                # Get parser method for header type
-                parse_function = cls._box_lookup.get(header.box_type, UnknownBox.parse)
-                try:
-                    yield parse_function(bs, header)
-                except ValueError:
-                    log.error("Premature end of data")
-                    raise
+                yield cls.parse_box(bstr, header)
+
+    @staticmethod
+    def parse_header(bstr):
+        try:
+            header = BoxHeader()
+            header.parse(bstr)
+        except bs.ReadError:
+            log.error("Premature end of data while reading box header")
+            raise
+        return header
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        # Get parser method for header type
+        parse_function = cls._box_lookup.get(header.type, UnknownBox.parse_box)
+        try:
+            box = parse_function(bstr, header)
+        except ValueError:
+            log.error("Premature end of data")
+            raise
+        return box
 
     @classmethod
     def _is_mp4(cls, parser):
@@ -491,70 +471,31 @@ class Parser(object):
             parser = cls.parse(filename=file_input, headers_only=True)
         return cls._is_mp4(parser)
 
-    @staticmethod
-    def read_string(bs):
-        """ read UTF8 null terminated string """
-        result = bs.readto('0x00', bytealigned=True).bytes.decode("utf-8")[:-1]
-        return result if result else None
 
-    @classmethod
-    def read_count_and_string_table(cls, bs):
-        """ Read a count then return the strings in a list """
-        result = []
-        entry_count = bs.read("uintbe:8")
-        for _ in range(0, entry_count):
-            result.append(cls.read_string(bs))
-        return result
+FTYP = FileTypeBox
+MOOV = MovieBox
+MVHD = MovieHeaderBox
+TRAK = TrackBox
+TKHD = TrackHeaderBox
+MDIA = MediaBox
+MDHD = MediaHeaderBox
+HDLR = HandlerReferenceBox
+MINF = MediaInformationBox
+VMHD = VideoMediaHeaderBox
+DINF = DataInformationBox
+STBL = SampleTableBox
+STSD = SampleDescriptionBox
 
-    @staticmethod
-    def read_box_header(bs):
-        header_start_pos = bs.bytepos
-        size, box_type = bs.readlist("uintbe:32, bytes:4")
-
-        # box_type should be an ASCII string. Decode as UTF-8 in case
-        try:
-            box_type = box_type.decode("utf-8")
-        except UnicodeDecodeError:
-            # we'll leave as bytes instead
-            pass
-
-        # if size == 1, then this is an extended size type.
-        # Therefore read the next 64 bits as size
-        if size == 1:
-            size = bs.read("uintbe:64")
-        header_end_pos = bs.bytepos
-        header_size = header_end_pos - header_start_pos
-
-        return BoxHeader(box_size=size - header_size, box_type=box_type,
-                         header_size=header_size)
-
-    @staticmethod
-    def parse_time_field(bs, scale):
-        timestamp = bs.read("uintbe:64")
-        return datetime.utcfromtimestamp(timestamp / float(scale))
-
-
-# =====
-# Boxes
-# =====
-UNKN = UnknownBox
-ABST = BootStrapInfoBox
-AFRA = FragmentRandomAccessBox
-MDAT = MediaDataBox
-MOOF = MovieFragmentBox
-MFHD = MovieFragmentHeader
-PSSH = ProtectionSystemSpecificHeader
-
-# ======
-# Tables
-# ======
-ASRT = SegmentRunTable
-AFRT = FragmentRunTable
-
-
-Parser.register_box(BootStrapInfoBox)
-Parser.register_box(FragmentRandomAccessBox)
-Parser.register_box(MediaDataBox)
-Parser.register_box(MovieFragmentBox)
-Parser.register_box(MovieFragmentHeader)
-Parser.register_box(ProtectionSystemSpecificHeader)
+Parser.register_box(FTYP)
+Parser.register_box(MOOV)
+Parser.register_box(MVHD)
+Parser.register_box(TRAK)
+Parser.register_box(TKHD)
+Parser.register_box(MDIA)
+Parser.register_box(MDHD)
+Parser.register_box(HDLR)
+Parser.register_box(MINF)
+Parser.register_box(VMHD)
+Parser.register_box(DINF)
+Parser.register_box(STBL)
+Parser.register_box(STSD)
