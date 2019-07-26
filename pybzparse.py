@@ -41,6 +41,7 @@ class AbstractBox(metaclass=ABCMeta):
     def parse_box(cls, bstr, header):
         box = cls(header)
         box.parse(bstr)
+        bstr.bytepos = box.header.start_pos + box.header.box_size
         return box
 
 
@@ -157,7 +158,8 @@ class UnknownBox(AbstractBox, MixinDictRepr):
 class ContainerBox(AbstractBox, MixinDictRepr):
     def __init__(self, header):
         super(ContainerBox, self).__init__(header)
-        self._boxes = None
+        self._boxes_start_pos = None
+        self._boxes = []
 
     def __bytes__(self):
         bytes_buffer = [super(ContainerBox, self).__bytes__()]
@@ -174,14 +176,22 @@ class ContainerBox(AbstractBox, MixinDictRepr):
             box.load(bstr)
 
     def parse(self, bstr):
-        self.parse_boxes(bstr)
+        self._boxes_start_pos = bstr.bytepos
 
-    def parse_boxes(self, bstr):
+    def parse_boxes(self, bstr, recursive=True):
         self._boxes = []
+        bstr.bytepos = self._boxes_start_pos
         end_pos = self._header.start_pos + self._header.box_size
+        box_iterator = Parser.parse(bstr, recursive=recursive)
         while bstr.bytepos < end_pos:
-            header = Parser.parse_header(bstr)
-            self._boxes.append(Parser.parse_box(bstr, header))
+            self._boxes.append(next(box_iterator))
+        bstr.bytepos = end_pos
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        box = cls(header)
+        box.parse(bstr)
+        return box
 
 
 # Root boxes
@@ -347,13 +357,14 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
 
     def parse(self, bstr):
         self.parse_fields(bstr, self._header)
-        self.parse_boxes(bstr)
+        self._boxes_start_pos = bstr.bytepos
 
-    def parse_boxes(self, bstr):
+    def parse_boxes(self, bstr, recursive=True):
         self._boxes = []
+        bstr.bitpos = self._boxes_start_pos
         for i in range(self._entry_count.value):
-            header = Parser.parse_header(bstr)
-            self._boxes.append(Parser.parse_box(bstr, header))
+            self._boxes.append(Parser.parse(bstr, recursive=recursive))
+        bstr.bytepos = self._header.start_pos + self._header.box_size
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -372,7 +383,7 @@ class Parser(object):
 
     @classmethod
     def parse(cls, filename=None, bytes_input=None, file_input=None,
-              offset_bytes=0, headers_only=False):
+              offset_bytes=0, headers_only=False, recursive=True):
         """
         Parse an MP4 file or bytes into boxes
 
@@ -386,6 +397,8 @@ class Parser(object):
         :type offset_bytes: int.
         :param headers_only: Ignore data and return just headers. Useful when data is cut short
         :type: headers_only: boolean
+        :param recursive: Recursively load sub-boxes
+        :type: recursive: boolean
         :return: BMFF Boxes or Headers
         """
 
@@ -416,7 +429,7 @@ class Parser(object):
                     log.warning("Premature end of data")
                     raise
             else:
-                yield cls.parse_box(bstr, header)
+                yield cls.parse_box(bstr, header, recursive=recursive)
 
     @staticmethod
     def parse_header(bstr):
@@ -429,11 +442,15 @@ class Parser(object):
         return header
 
     @classmethod
-    def parse_box(cls, bstr, header):
+    def parse_box(cls, bstr, header, recursive=True):
         # Get parser method for header type
         parse_function = cls._box_lookup.get(header.type, UnknownBox.parse_box)
         try:
             box = parse_function(bstr, header)
+            if recursive and isinstance(box, ContainerBox):
+                box.parse_boxes(bstr, recursive)
+            else:
+                bstr.bytepos = box.header.start_pos + box.header.box_size
         except ValueError:
             log.error("Premature end of data")
             raise
