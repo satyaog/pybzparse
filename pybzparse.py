@@ -155,6 +155,23 @@ class UnknownBox(AbstractBox, MixinDictRepr):
         bstr.bytepos = self._header.start_pos + self._header.box_size
 
 
+class DataBox(AbstractBox, DataBoxFieldsList, MixinDictRepr):
+    def __init__(self, header):
+        DataBoxFieldsList.__init__(self)
+        super(DataBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(DataBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        bstr.bytepos = self.header.start_pos + self.header.header_size
+        self.parse_fields(bstr, self._header)
+
+    def parse(self, bstr):
+        pass
+
+
 class ContainerBox(AbstractBox, MixinDictRepr):
     def __init__(self, header):
         super(ContainerBox, self).__init__(header)
@@ -213,8 +230,23 @@ class FileTypeBox(AbstractBox, FileTypeBoxFieldsList, MixinDictRepr):
         self.parse_fields(bstr, self._header)
 
 
+class MediaDataBox(DataBox):
+    type = b"mdat"
+
+
 class MovieBox(ContainerBox, MixinDictRepr):
     type = b"moov"
+
+
+class MetaBox(ContainerBox, MixinDictRepr):
+    type = b"meta"
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(MetaBox, cls).parse_box(bstr, full_box_header)
 
 
 # moov boxes
@@ -374,6 +406,266 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
         return super(SampleDescriptionBox, cls).parse_box(bstr, full_box_header)
 
 
+# dinf boxes
+class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
+    type = b"dref"
+
+    def __init__(self, header):
+        DataReferenceBoxFieldsList.__init__(self)
+        super(DataReferenceBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(DataReferenceBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def parse_boxes(self, bstr, recursive=True):
+        self._boxes = []
+        box_iterator = Parser.parse(bstr, recursive=recursive)
+        for i in range(self._entry_count.value):
+            self._boxes.append(next(box_iterator))
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(DataReferenceBox, cls).parse_box(bstr, full_box_header)
+
+
+class PrimaryItemBox(AbstractFullBox, PrimaryItemBoxFieldsList, MixinDictRepr):
+    type = b"pitm"
+
+    def __init__(self, header):
+        PrimaryItemBoxFieldsList.__init__(self)
+        super(PrimaryItemBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(PrimaryItemBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
+class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRepr):
+    type = b"iinf"
+
+    def __init__(self, header):
+        ItemInformationBoxFieldsList.__init__(self)
+        super(ItemInformationBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(ItemInformationBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def parse_boxes(self, bstr, recursive=True):
+        self._boxes = []
+        bstr.bytepos = self._boxes_start_pos
+        box_iterator = Parser.parse(bstr, recursive=recursive)
+        for i in range(self._entry_count.value):
+            self._boxes.append(next(box_iterator))
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(ItemInformationBox, cls).parse_box(bstr, full_box_header)
+
+
+# dref boxes
+class DataEntryUrlBox(AbstractFullBox, DataEntryUrlBoxFieldsList, MixinDictRepr):
+    type = b"url "
+
+    def __init__(self, header):
+        DataEntryUrlBoxFieldsList.__init__(self)
+        super(DataEntryUrlBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(DataEntryUrlBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
+class DataEntryUrnBox(AbstractFullBox, DataEntryUrnBoxFieldsList, MixinDictRepr):
+    type = b"urn "
+
+    def __init__(self, header):
+        DataEntryUrnBoxFieldsList.__init__(self)
+        super(DataEntryUrnBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(DataEntryUrnBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
+# iinf boxes
+class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
+    type = b"infe"
+
+    def __init__(self, header):
+        ItemInfoEntryBoxFieldsList.__init__(self)
+        super(ItemInfoEntryBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(ItemInfoEntryBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def parse_boxes(self, bstr, recursive=True):
+        self._boxes = []
+        if self._extension_type.value:
+            bstr.bitpos = self._boxes_start_pos
+            self._boxes.append(Parser.parse(bstr, recursive=recursive))
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(ItemInfoEntryBox, cls).parse_box(bstr, full_box_header)
+
+
+# meta boxes
+class ItemReferenceBox(ContainerBox, MixinDictRepr):
+    type = b"iref"
+
+    def parse_boxes(self, bstr, recursive=True):
+        self._boxes = []
+        bstr.bytepos = self._boxes_start_pos
+        end_pos = self._header.start_pos + self._header.box_size
+        while bstr.bytepos < end_pos:
+            header = Parser.parse_header(bstr)
+            if self._header.version == 0:
+                self._boxes.append(Parser.parse_box(bstr, header, SingleItemTypeReferenceBox, recursive))
+            elif self._header.version == 1:
+                self._boxes.append(Parser.parse_box(bstr, header, SingleItemTypeReferenceBoxLarge, recursive))
+            else:
+                break
+        bstr.bytepos = end_pos
+
+    @classmethod
+    def parse_box(cls, bstr, header):
+        full_box_header = FullBoxHeader()
+        full_box_header.extend_header(bstr, header)
+        del header
+        return super(ItemReferenceBox, cls).parse_box(bstr, full_box_header)
+
+
+class ItemPropertiesBox(ContainerBox, MixinDictRepr):
+    type = b"iprp"
+
+
+class ItemDataBox(DataBox):
+    type = b"idat"
+
+
+class ItemLocationBox(AbstractFullBox, ItemLocationBoxFieldsList, MixinDictRepr):
+    type = b"iloc"
+
+    def __init__(self, header):
+        ItemLocationBoxFieldsList.__init__(self)
+        super(ItemLocationBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(ItemLocationBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
+# iref boxes
+class SingleItemTypeReferenceBox(AbstractFullBox, SingleItemTypeReferenceBoxFieldsList, MixinDictRepr):
+    type = b""
+
+    def __init__(self, header):
+        SingleItemTypeReferenceBoxFieldsList.__init__(self)
+        super(SingleItemTypeReferenceBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(SingleItemTypeReferenceBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
+class SingleItemTypeReferenceBoxLarge(AbstractFullBox, SingleItemTypeReferenceBoxLargeFieldsList, MixinDictRepr):
+    type = b""
+
+    def __init__(self, header):
+        SingleItemTypeReferenceBoxLargeFieldsList.__init__(self)
+        super(SingleItemTypeReferenceBoxLarge, self).__init__(header)
+
+    def __bytes__(self):
+        return super(SingleItemTypeReferenceBoxLarge, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
+# iprp boxes
+class ItemPropertyContainerBox(ContainerBox, MixinDictRepr):
+    type = b"ipco"
+
+
+class ItemPropertyAssociationBox(AbstractFullBox, ItemPropertyAssociationBoxFieldsList, MixinDictRepr):
+    type = b"ipma"
+
+    def __init__(self, header):
+        ItemPropertyAssociationBoxFieldsList.__init__(self)
+        super(ItemPropertyAssociationBox, self).__init__(header)
+
+    def __bytes__(self):
+        return super(ItemPropertyAssociationBox, self).__bytes__() + \
+               AbstractFieldsList.__bytes__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+
 class Parser(object):
     _box_lookup = {}
 
@@ -382,19 +674,21 @@ class Parser(object):
         cls._box_lookup[box_cls.type] = box_cls.parse_box
 
     @classmethod
-    def parse(cls, filename=None, bytes_input=None, file_input=None,
+    def parse(cls, bstr=None, filename=None, bytes_input=None, file_input=None,
               offset_bytes=0, headers_only=False, recursive=True):
         """
         Parse an MP4 file or bytes into boxes
 
-        :param filename: filename of mp4 file.
-        :type filename: str.
-        :param bytes_input: bytes of mp4 file.
-        :type bytes_input: bytes / Python 2.x str.
+        :param bstr: The bitstring to parse
+        :type bstr: str
+        :param filename: Filename of an mp4 file
+        :type filename: str
+        :param bytes_input: Bytes of an mp4 file
+        :type bytes_input: bytes
         :param file_input: Filename or file object
         :type file_input: str, file
-        :param offset_bytes: start parsing at offset.
-        :type offset_bytes: int.
+        :param offset_bytes: Start parsing at offset.
+        :type offset_bytes: int
         :param headers_only: Ignore data and return just headers. Useful when data is cut short
         :type: headers_only: boolean
         :param recursive: Recursively load sub-boxes
@@ -406,7 +700,7 @@ class Parser(object):
             bstr = bs.ConstBitStream(filename=filename, offset=offset_bytes * 8)
         elif bytes_input:
             bstr = bs.ConstBitStream(bytes=bytes_input, offset=offset_bytes * 8)
-        else:
+        elif file_input:
             bstr = bs.ConstBitStream(auto=file_input, offset=offset_bytes * 8)
 
         log.debug("Starting parse")
@@ -442,9 +736,13 @@ class Parser(object):
         return header
 
     @classmethod
-    def parse_box(cls, bstr, header, recursive=True):
-        # Get parser method for header type
-        parse_function = cls._box_lookup.get(header.type, UnknownBox.parse_box)
+    def parse_box(cls, bstr, header, box_cls=None, recursive=True):
+        if box_cls is not None:
+            parse_function = box_cls.parse_box
+        else:
+            # Get parser method for header type
+            parse_function = cls._box_lookup.get(header.type, UnknownBox.parse_box)
+
         try:
             box = parse_function(bstr, header)
             if recursive and isinstance(box, ContainerBox):
@@ -497,7 +795,9 @@ class Parser(object):
 
 # Root boxes
 FTYP = FileTypeBox
+MDAT = MediaDataBox
 MOOV = MovieBox
+META = MetaBox
 
 # moov boxes
 MVHD = MovieHeaderBox
@@ -520,9 +820,34 @@ DINF = DataInformationBox
 # stbl boxes
 STSD = SampleDescriptionBox
 
+# dinf boxes
+DREF = DataReferenceBox
+PITM = PrimaryItemBox
+IINF = ItemInformationBox
+
+# dref boxes
+URL_ = DataEntryUrlBox
+URN_ = DataEntryUrnBox
+
+# iinf boxes
+INFE = ItemInfoEntryBox
+
+# meta boxes
+IREF = ItemReferenceBox
+IPRP = ItemPropertiesBox
+IDAT = ItemDataBox
+ILOC = ItemLocationBox
+
+# iprp boxes
+IPCO = ItemPropertyContainerBox
+IPMA = ItemPropertyAssociationBox
+
+
 # Root boxes
 Parser.register_box(FTYP)
+Parser.register_box(MDAT)
 Parser.register_box(MOOV)
+Parser.register_box(META)
 
 # moov boxes
 Parser.register_box(MVHD)
@@ -544,3 +869,25 @@ Parser.register_box(DINF)
 
 # stbl boxes
 Parser.register_box(STSD)
+
+# dinf boxes
+Parser.register_box(DREF)
+Parser.register_box(PITM)
+Parser.register_box(IINF)
+
+# dref boxes
+Parser.register_box(URL_)
+Parser.register_box(URN_)
+
+# iinf boxes
+Parser.register_box(INFE)
+
+# meta boxes
+Parser.register_box(IREF)
+Parser.register_box(IPRP)
+Parser.register_box(IDAT)
+Parser.register_box(ILOC)
+
+# iprp boxes
+Parser.register_box(IPCO)
+Parser.register_box(IPMA)
