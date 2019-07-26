@@ -1,6 +1,7 @@
 import bitstring as bs
 
-class AbstractFieldsList():
+
+class AbstractFieldsList:
     class Field:
         def __init__(self, index=None, value=None, value_type=None, size=None,
                      is_list=False, is_string=False):
@@ -160,23 +161,7 @@ class FullBoxHeaderFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._flags)
 
 
-class SampleDescriptionBoxHeaderFieldsList(AbstractFieldsList):
-    def __init__(self, length=1):
-        self._entry_count = self.Field(value_type="uintbe", size=32)
-        super(SampleDescriptionBoxHeaderFieldsList, self).__init__(length)
-
-    @property
-    def entry_count(self):
-        return self._entry_count.value
-
-    @entry_count.setter
-    def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
-
-    def parse_fields(self, bstr):
-        self._read_field(bstr, self._entry_count)
-
-
+# Root boxes
 class FileTypeBoxFieldsList(AbstractFieldsList):
     def __init__(self):
         self._major_brand = self.Field(value_type="uintbe", size=32)
@@ -215,6 +200,7 @@ class FileTypeBoxFieldsList(AbstractFieldsList):
                          until_pos=(header.start_pos + header.box_size) * 8)
 
 
+# moov boxes
 class MovieHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self):
         self._creation_time = self.Field(value_type="uintbe", size=32)
@@ -337,6 +323,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._next_track_id)
 
 
+# trak boxes
 class TrackHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self):
         self._creation_time = self.Field(value_type="uintbe", size=32)
@@ -477,6 +464,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
                          until_pos=bstr.bitpos + self._height_length)
 
 
+# mdia boxes
 class MediaHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self):
         self._creation_time = self.Field(value_type="uintbe", size=32)
@@ -608,6 +596,7 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._name)
 
 
+# minf boxes
 class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self):
         self._graphicsmode = self.Field(value_type="uintbe", size=16)
@@ -639,6 +628,7 @@ class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
                          until_pos=bstr.bitpos + self._opcolor_length)
 
 
+# stbl boxes
 class SampleDescriptionBoxFieldsList(AbstractFieldsList):
     def __init__(self):
         self._entry_count = self.Field(value_type="uintbe", size=32)

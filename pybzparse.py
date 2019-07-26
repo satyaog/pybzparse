@@ -136,7 +136,7 @@ class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList):
 
 
 class UnknownBox(AbstractBox, MixinDictRepr):
-    type = b"unkn"
+    type = b"____"
 
     def __init__(self, header):
         super(UnknownBox, self).__init__(header)
@@ -184,6 +184,7 @@ class ContainerBox(AbstractBox, MixinDictRepr):
             self._boxes.append(Parser.parse_box(bstr, header))
 
 
+# Root boxes
 class FileTypeBox(AbstractBox, FileTypeBoxFieldsList, MixinDictRepr):
     type = b"ftyp"
 
@@ -206,6 +207,7 @@ class MovieBox(ContainerBox, MixinDictRepr):
     type = b"moov"
 
 
+# moov boxes
 class MovieHeaderBox(AbstractFullBox, MovieHeaderBoxFieldsList, MixinDictRepr):
     type = b"mvhd"
 
@@ -228,6 +230,7 @@ class TrackBox(ContainerBox, MixinDictRepr):
     type = b"trak"
 
 
+# trak boxes
 class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
     type = b"tkhd"
 
@@ -262,6 +265,7 @@ class MediaBox(ContainerBox, MixinDictRepr):
     type = b"mdia"
 
 
+# mdia boxes
 class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
     type = b"mdhd"
 
@@ -302,6 +306,11 @@ class MediaInformationBox(ContainerBox, MixinDictRepr):
     type = b"minf"
 
 
+class SampleTableBox(ContainerBox, MixinDictRepr):
+    type = b"stbl"
+
+
+# minf boxes
 class VideoMediaHeaderBox(AbstractFullBox, VideoMediaHeaderBoxFieldsList, MixinDictRepr):
     type = b"vmhd"
 
@@ -324,10 +333,7 @@ class DataInformationBox(ContainerBox, MixinDictRepr):
     type = b"dinf"
 
 
-class SampleTableBox(ContainerBox, MixinDictRepr):
-    type = b"stbl"
-
-
+# stbl boxes
 class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDictRepr):
     type = b"stsd"
 
@@ -472,30 +478,52 @@ class Parser(object):
         return cls._is_mp4(parser)
 
 
+# Root boxes
 FTYP = FileTypeBox
 MOOV = MovieBox
+
+# moov boxes
 MVHD = MovieHeaderBox
 TRAK = TrackBox
+
+# trak boxes
 TKHD = TrackHeaderBox
 MDIA = MediaBox
+
+# mdia boxes
 MDHD = MediaHeaderBox
 HDLR = HandlerReferenceBox
 MINF = MediaInformationBox
+STBL = SampleTableBox
+
+# minf boxes
 VMHD = VideoMediaHeaderBox
 DINF = DataInformationBox
-STBL = SampleTableBox
+
+# stbl boxes
 STSD = SampleDescriptionBox
 
+# Root boxes
 Parser.register_box(FTYP)
 Parser.register_box(MOOV)
+
+# moov boxes
 Parser.register_box(MVHD)
 Parser.register_box(TRAK)
+
+# trak boxes
 Parser.register_box(TKHD)
 Parser.register_box(MDIA)
+
+# mdia boxes
 Parser.register_box(MDHD)
 Parser.register_box(HDLR)
 Parser.register_box(MINF)
+Parser.register_box(STBL)
+
+# minf boxes
 Parser.register_box(VMHD)
 Parser.register_box(DINF)
-Parser.register_box(STBL)
+
+# stbl boxes
 Parser.register_box(STSD)
