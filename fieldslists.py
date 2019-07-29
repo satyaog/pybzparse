@@ -749,8 +749,10 @@ class DataEntryUrlBoxFieldsList(AbstractFieldsList):
         self._set_field(self._location, *value)
 
     def parse_fields(self, bstr, header):
-        del header
-        self._read_field(bstr, self._location)
+        # It seams that location can be empty (0 bytes) based on the result in
+        # the test file photo.heic
+        if bstr.bytepos < header.start_pos + header.box_size:
+            self._read_field(bstr, self._location)
 
 
 class DataEntryUrnBoxFieldsList(AbstractFieldsList):
@@ -777,9 +779,12 @@ class DataEntryUrnBoxFieldsList(AbstractFieldsList):
         self._set_field(self._name, *value)
 
     def parse_fields(self, bstr, header):
-        del header
+        end = header.start_pos + header.box_size
         self._read_field(bstr, self._name)
-        self._read_field(bstr, self._location)
+        # If this acts like the URL_ box, it seams that location can be empty
+        # (0 bytes) based on the result in the test file photo.heic
+        if bstr.bytepos < end:
+            self._read_field(bstr, self._location)
 
 
 # iinf boxes
@@ -899,7 +904,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
                 # TODO: find documentation regarding type grid
                 pass
             elif self._item_type.value == 1165519206:   # b"Exif"
-                # TODO: find documentation regarding type grid
+                # TODO: find documentation regarding type Exif
                 pass
 
 
