@@ -17,9 +17,11 @@ MAX_UINT_32 = c_uint32(-1).value
 class AbstractBox(metaclass=ABCMeta):
     def __init__(self, header):
         self._header = header
+        self._remaining_bytes = 0
+        self._padding = None
 
     def __bytes__(self):
-        return bytes(self._header)
+        return b''.join([bytes(self._header), self._get_content_bytes(), self.padding])
 
     @property
     def header(self):
@@ -29,19 +31,38 @@ class AbstractBox(metaclass=ABCMeta):
     def header(self, value):
         self._header = value
 
+    @property
+    def padding(self):
+        return b'\0' * self._remaining_bytes if self._padding is None else \
+            self._padding
+
+    @padding.setter
+    def padding(self, value):
+        self._padding = value
+
+    @abstractmethod
+    def _get_content_bytes(self):
+        raise NotImplemented()
+
     @abstractmethod
     def load(self, bstr):
         raise NotImplemented()
 
-    @abstractmethod
     def parse(self, bstr):
+        self.parse_impl(bstr)
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+            bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    @abstractmethod
+    def parse_impl(self, bstr):
         raise NotImplemented()
 
     @classmethod
     def parse_box(cls, bstr, header):
         box = cls(header)
         box.parse(bstr)
-        bstr.bytepos = box.header.start_pos + box.header.box_size
         return box
 
 
@@ -141,17 +162,24 @@ class UnknownBox(AbstractBox, MixinDictRepr):
 
     def __init__(self, header):
         super(UnknownBox, self).__init__(header)
-        self.payload = None
+        self._payload = b''
 
-    def __bytes__(self):
-        return super(UnknownBox, self).__bytes__() + \
-               self.payload
+    @property
+    def payload(self):
+        return self._payload
+
+    @payload.setter
+    def payload(self, value):
+        self._payload = value
+
+    def _get_content_bytes(self):
+        return self._payload
 
     def load(self, bstr):
-        bstr.bytepos = self.header.start_pos + self.header.header_size
-        self.payload = bstr.read(self.header.content_size * 8).bytes
+        bstr.bytepos = self._header.start_pos + self._header.header_size
+        self._payload = bstr.read(self._header.content_size * 8).bytes
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         bstr.bytepos = self._header.start_pos + self._header.box_size
 
 
@@ -160,16 +188,15 @@ class DataBox(AbstractBox, DataBoxFieldsList, MixinDictRepr):
         DataBoxFieldsList.__init__(self)
         super(DataBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(DataBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
-        bstr.bytepos = self.header.start_pos + self.header.header_size
+        bstr.bytepos = self._header.start_pos + self._header.header_size
         self.parse_fields(bstr, self._header)
 
-    def parse(self, bstr):
-        pass
+    def parse_impl(self, bstr):
+        bstr.bytepos = self._header.start_pos + self._header.box_size
 
 
 class ContainerBox(AbstractBox, MixinDictRepr):
@@ -178,31 +205,39 @@ class ContainerBox(AbstractBox, MixinDictRepr):
         self._boxes_start_pos = None
         self._boxes = []
 
-    def __bytes__(self):
-        bytes_buffer = [super(ContainerBox, self).__bytes__()]
-        bytes_buffer.extend([bytes(box) for box in self._boxes])
-        return b''.join(bytes_buffer)
-
     @property
     def boxes(self):
         return self._boxes
 
+    def _get_content_bytes(self):
+        return b''.join([bytes(box) for box in self._boxes])
+
     def load(self, bstr):
-        bstr.bitpos = self.header.start_pos + self.header.header_size
+        bstr.bitpos = self._header.start_pos + self._header.header_size
         for box in self._boxes:
             box.load(bstr)
 
     def parse(self, bstr):
+        self.parse_impl(bstr)
+
+    def parse_impl(self, bstr):
         self._boxes_start_pos = bstr.bytepos
 
     def parse_boxes(self, bstr, recursive=True):
-        self._boxes = []
         bstr.bytepos = self._boxes_start_pos
+        self.parse_boxes_impl(bstr, recursive)
+        # TODO: Validate in the specs if this check is needed
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+            bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_boxes_impl(self, bstr, recursive=True):
+        self._boxes = []
         end_pos = self._header.start_pos + self._header.box_size
         box_iterator = Parser.parse(bstr, recursive=recursive)
         while bstr.bytepos < end_pos:
             self._boxes.append(next(box_iterator))
-        bstr.bytepos = end_pos
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -219,14 +254,13 @@ class FileTypeBox(AbstractBox, FileTypeBoxFieldsList, MixinDictRepr):
         FileTypeBoxFieldsList.__init__(self)
         super(FileTypeBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(FileTypeBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -257,14 +291,13 @@ class MovieHeaderBox(AbstractFullBox, MovieHeaderBoxFieldsList, MixinDictRepr):
         MovieHeaderBoxFieldsList.__init__(self)
         super(MovieHeaderBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(MovieHeaderBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -280,10 +313,6 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
         TrackHeaderBoxFieldsList.__init__(self)
         super(TrackHeaderBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(TrackHeaderBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
-
     @property
     def width(self):
         return self._width.value[0]
@@ -296,10 +325,13 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
     def is_audio(self):
         return self._volume.value == 1
 
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
+
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -315,14 +347,13 @@ class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
         MediaHeaderBoxFieldsList.__init__(self)
         super(MediaHeaderBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(MediaHeaderBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -333,14 +364,13 @@ class HandlerReferenceBox(AbstractFullBox, HandlerReferenceBoxFieldsList, MixinD
         HandlerReferenceBoxFieldsList.__init__(self)
         super(HandlerReferenceBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(HandlerReferenceBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -360,14 +390,13 @@ class VideoMediaHeaderBox(AbstractFullBox, VideoMediaHeaderBoxFieldsList, MixinD
         VideoMediaHeaderBoxFieldsList.__init__(self)
         super(VideoMediaHeaderBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(VideoMediaHeaderBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -383,20 +412,19 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
         SampleDescriptionBoxFieldsList.__init__(self)
         super(SampleDescriptionBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(SampleDescriptionBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
         self._boxes_start_pos = bstr.bytepos
 
-    def parse_boxes(self, bstr, recursive=True):
+    def parse_boxes_impl(self, bstr, recursive=True):
         self._boxes = []
-        bstr.bitpos = self._boxes_start_pos
+        box_iterator = Parser.parse(bstr, recursive=recursive)
         for i in range(self._entry_count.value):
-            self._boxes.append(Parser.parse(bstr, recursive=recursive))
-        bstr.bytepos = self._header.start_pos + self._header.box_size
+            self._boxes.append(next(box_iterator))
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -414,20 +442,19 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
         DataReferenceBoxFieldsList.__init__(self)
         super(DataReferenceBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(DataReferenceBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
         self._boxes_start_pos = bstr.bytepos
 
-    def parse_boxes(self, bstr, recursive=True):
+    def parse_boxes_impl(self, bstr, recursive=True):
         self._boxes = []
         box_iterator = Parser.parse(bstr, recursive=recursive)
         for i in range(self._entry_count.value):
             self._boxes.append(next(box_iterator))
-        bstr.bytepos = self._header.start_pos + self._header.box_size
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -444,14 +471,13 @@ class PrimaryItemBox(AbstractFullBox, PrimaryItemBoxFieldsList, MixinDictRepr):
         PrimaryItemBoxFieldsList.__init__(self)
         super(PrimaryItemBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(PrimaryItemBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -462,21 +488,19 @@ class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRe
         ItemInformationBoxFieldsList.__init__(self)
         super(ItemInformationBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(ItemInformationBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
         self._boxes_start_pos = bstr.bytepos
 
-    def parse_boxes(self, bstr, recursive=True):
+    def parse_boxes_impl(self, bstr, recursive=True):
         self._boxes = []
-        bstr.bytepos = self._boxes_start_pos
         box_iterator = Parser.parse(bstr, recursive=recursive)
         for i in range(self._entry_count.value):
             self._boxes.append(next(box_iterator))
-        bstr.bytepos = self._header.start_pos + self._header.box_size
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -494,14 +518,13 @@ class DataEntryUrlBox(AbstractFullBox, DataEntryUrlBoxFieldsList, MixinDictRepr)
         DataEntryUrlBoxFieldsList.__init__(self)
         super(DataEntryUrlBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(DataEntryUrlBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -512,14 +535,13 @@ class DataEntryUrnBox(AbstractFullBox, DataEntryUrnBoxFieldsList, MixinDictRepr)
         DataEntryUrnBoxFieldsList.__init__(self)
         super(DataEntryUrnBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(DataEntryUrnBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -531,20 +553,19 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
         ItemInfoEntryBoxFieldsList.__init__(self)
         super(ItemInfoEntryBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(ItemInfoEntryBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
         self._boxes_start_pos = bstr.bytepos
 
-    def parse_boxes(self, bstr, recursive=True):
+    def parse_boxes_impl(self, bstr, recursive=True):
         self._boxes = []
         if self._extension_type.value:
-            bstr.bitpos = self._boxes_start_pos
-            self._boxes.append(Parser.parse(bstr, recursive=recursive))
-        bstr.bytepos = self._header.start_pos + self._header.box_size
+            bstr.bytepos = self._boxes_start_pos
+            self._boxes.append(next(Parser.parse(bstr, recursive=recursive)))
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -558,19 +579,21 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
 class ItemReferenceBox(ContainerBox, MixinDictRepr):
     type = b"iref"
 
-    def parse_boxes(self, bstr, recursive=True):
+    def parse_boxes_impl(self, bstr, recursive=True):
         self._boxes = []
-        bstr.bytepos = self._boxes_start_pos
         end_pos = self._header.start_pos + self._header.box_size
+
+        item_reference_box_cls = None
+        if self._header.version == 0:
+            item_reference_box_cls = SingleItemTypeReferenceBox
+        elif self._header.version == 1:
+            item_reference_box_cls = SingleItemTypeReferenceBoxLarge
+
         while bstr.bytepos < end_pos:
             header = Parser.parse_header(bstr)
-            if self._header.version == 0:
-                self._boxes.append(Parser.parse_box(bstr, header, SingleItemTypeReferenceBox, recursive))
-            elif self._header.version == 1:
-                self._boxes.append(Parser.parse_box(bstr, header, SingleItemTypeReferenceBoxLarge, recursive))
-            else:
-                break
-        bstr.bytepos = end_pos
+            self._boxes.append(Parser.parse_box(bstr, header,
+                                                item_reference_box_cls,
+                                                recursive))
 
     @classmethod
     def parse_box(cls, bstr, header):
@@ -595,51 +618,48 @@ class ItemLocationBox(AbstractFullBox, ItemLocationBoxFieldsList, MixinDictRepr)
         ItemLocationBoxFieldsList.__init__(self)
         super(ItemLocationBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(ItemLocationBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return ItemLocationBoxFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
 # iref boxes
-class SingleItemTypeReferenceBox(AbstractFullBox, SingleItemTypeReferenceBoxFieldsList, MixinDictRepr):
+class SingleItemTypeReferenceBox(AbstractBox, SingleItemTypeReferenceBoxFieldsList, MixinDictRepr):
     type = b""
 
     def __init__(self, header):
         SingleItemTypeReferenceBoxFieldsList.__init__(self)
         super(SingleItemTypeReferenceBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(SingleItemTypeReferenceBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
-class SingleItemTypeReferenceBoxLarge(AbstractFullBox, SingleItemTypeReferenceBoxLargeFieldsList, MixinDictRepr):
+class SingleItemTypeReferenceBoxLarge(AbstractBox, SingleItemTypeReferenceBoxLargeFieldsList, MixinDictRepr):
     type = b""
 
     def __init__(self, header):
         SingleItemTypeReferenceBoxLargeFieldsList.__init__(self)
         super(SingleItemTypeReferenceBoxLarge, self).__init__(header)
 
-    def __bytes__(self):
-        return super(SingleItemTypeReferenceBoxLarge, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -655,14 +675,13 @@ class ItemPropertyAssociationBox(AbstractFullBox, ItemPropertyAssociationBoxFiel
         ItemPropertyAssociationBoxFieldsList.__init__(self)
         super(ItemPropertyAssociationBox, self).__init__(header)
 
-    def __bytes__(self):
-        return super(ItemPropertyAssociationBox, self).__bytes__() + \
-               AbstractFieldsList.__bytes__(self)
+    def _get_content_bytes(self):
+        return ItemPropertyAssociationBoxFieldsList.__bytes__(self)
 
     def load(self, bstr):
         pass
 
-    def parse(self, bstr):
+    def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
 
 
@@ -680,7 +699,7 @@ class Parser(object):
         Parse an MP4 file or bytes into boxes
 
         :param bstr: The bitstring to parse
-        :type bstr: str
+        :type bstr: bitstring.ConstBitStream
         :param filename: Filename of an mp4 file
         :type filename: str
         :param bytes_input: Bytes of an mp4 file
@@ -736,12 +755,12 @@ class Parser(object):
         return header
 
     @classmethod
-    def parse_box(cls, bstr, header, box_cls=None, recursive=True):
-        if box_cls is not None:
-            parse_function = box_cls.parse_box
-        else:
-            # Get parser method for header type
-            parse_function = cls._box_lookup.get(header.type, UnknownBox.parse_box)
+    def parse_box(cls, bstr, header, default_box_cls=None, recursive=True):
+        if default_box_cls is None:
+            default_box_cls = UnknownBox
+
+        # Get parser method for header type
+        parse_function = cls._box_lookup.get(header.type, default_box_cls.parse_box)
 
         try:
             box = parse_function(bstr, header)
