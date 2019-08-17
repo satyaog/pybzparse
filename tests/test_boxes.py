@@ -4,7 +4,7 @@ from bitstring import pack
 
 import boxes as bx_def
 import headers
-import fieldslists as flists
+import fields_lists as flists
 from pybzparse import Parser
 
 

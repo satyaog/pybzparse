@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
-from fieldslists import *
+from fields_lists import *
 
 
 class AbstractSubFieldsList(metaclass=ABCMeta):

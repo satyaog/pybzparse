@@ -3,8 +3,8 @@ from abc import ABCMeta, abstractmethod
 from headers import FullBoxHeader
 from pybzparse import Parser
 
-from fieldslists import *
-from sub_fieldslists import ItemLocationSubFieldsList, ItemPropertyAssociationSubFieldsList
+from fields_lists import *
+from sub_fields_lists import ItemLocationSubFieldsList, ItemPropertyAssociationSubFieldsList
 
 
 class MixinDictRepr(object):

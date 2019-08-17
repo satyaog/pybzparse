@@ -1,4 +1,4 @@
-from fieldslists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
+from fields_lists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
 from pybzparse import Parser
 from ctypes import c_uint32
 
