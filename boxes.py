@@ -4,6 +4,7 @@ from headers import FullBoxHeader
 from pybzparse import Parser
 
 from fieldslists import *
+from sub_fieldslists import ItemLocationSubFieldsList, ItemPropertyAssociationSubFieldsList
 
 
 class MixinDictRepr(object):
@@ -93,7 +94,6 @@ class ContainerBox(AbstractBox, MixinDictRepr):
         return self._boxes
 
     def load(self, bstr):
-        bstr.bitpos = self._header.start_pos + self._header.header_size
         for box in self._boxes:
             box.load(bstr)
 
@@ -542,21 +542,27 @@ class ItemDataBox(DataBox):
     type = b"idat"
 
 
-class ItemLocationBox(AbstractFullBox, ItemLocationBoxFieldsList, MixinDictRepr):
+class ItemLocationBox(AbstractFullBox, ItemLocationSubFieldsList, MixinDictRepr):
     type = b"iloc"
 
     def __init__(self, header):
-        ItemLocationBoxFieldsList.__init__(self)
+        ItemLocationSubFieldsList.__init__(self)
         super().__init__(header)
 
     def load(self, bstr):
-        pass
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
 
     def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
 
     def _get_content_bytes(self):
-        return ItemLocationBoxFieldsList.__bytes__(self)
+        return ItemLocationSubFieldsList.__bytes__(self)
 
 
 # iref boxes
@@ -601,22 +607,28 @@ class ItemPropertyContainerBox(ContainerBox, MixinDictRepr):
     type = b"ipco"
 
 
-class ItemPropertyAssociationBox(AbstractFullBox, ItemPropertyAssociationBoxFieldsList,
+class ItemPropertyAssociationBox(AbstractFullBox, ItemPropertyAssociationSubFieldsList,
                                  MixinDictRepr):
     type = b"ipma"
 
     def __init__(self, header):
-        ItemPropertyAssociationBoxFieldsList.__init__(self)
+        ItemPropertyAssociationSubFieldsList.__init__(self)
         super().__init__(header)
 
     def load(self, bstr):
-        pass
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
 
     def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
 
     def _get_content_bytes(self):
-        return ItemPropertyAssociationBoxFieldsList.__bytes__(self)
+        return ItemPropertyAssociationSubFieldsList.__bytes__(self)
 
 
 # Root boxes

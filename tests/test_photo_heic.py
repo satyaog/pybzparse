@@ -310,6 +310,10 @@ def test_photo_heic_guided_parsing():
     assert ipma.header.version == 0
     assert ipma.header.flags == b"\x00\x00\x00"
     assert ipma.entry_count == 50
+    assert len(ipma.entries) == 0
+    assert ipma.padding == b''
+
+    ipma.load(bstr)
     assert len(ipma.entries) == 50
     assert ipma.padding == b''
 
@@ -404,6 +408,10 @@ def test_photo_heic_guided_parsing():
     assert iloc.base_offset_size == 0
     assert iloc.index_size == 0
     assert iloc.item_count == 51
+    assert len(iloc.items) == 0
+    assert iloc.padding == b''
+
+    iloc.load(bstr)
     assert len(iloc.items) == 51
     assert iloc.padding == b''
 
@@ -785,6 +793,10 @@ def test_photo_heic_parsing():
     assert ipma.header.version == 0
     assert ipma.header.flags == b"\x00\x00\x00"
     assert ipma.entry_count == 50
+    assert len(ipma.entries) == 0
+    assert ipma.padding == b''
+
+    ipma.load(bstr)
     assert len(ipma.entries) == 50
     assert ipma.padding == b''
 
@@ -872,6 +884,10 @@ def test_photo_heic_parsing():
     assert iloc.base_offset_size == 0
     assert iloc.index_size == 0
     assert iloc.item_count == 51
+    assert len(iloc.items) == 0
+    assert iloc.padding == b''
+
+    iloc.load(bstr)
     assert len(iloc.items) == 51
     assert iloc.padding == b''
 

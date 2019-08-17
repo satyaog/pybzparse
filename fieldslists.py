@@ -990,11 +990,6 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
         self._item_count = \
             self._register_field(Field(value_type="uintbe", size=32))
-        self._items = []
-
-    def __bytes__(self):
-        box_bytes = super().__bytes__()
-        return b''.join([box_bytes] + [bytes(box) for box in self._items])
 
     @property
     def offset_size(self):
@@ -1036,10 +1031,6 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
     def item_count(self, value):
         self._set_field(self._item_count, *value)
 
-    @property
-    def items(self):
-        return self._items
-
     def parse_fields(self, bstr, header):
         if header.version < 2:
             self._item_count.type = "uintbe:16"
@@ -1055,24 +1046,12 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
         self._read_field(bstr, self._item_count)
 
-        for i in range(self._item_count.value):
-            item = ItemLocationBoxItemFieldsList(self._index_size.value,
-                                                 self._offset_size.value,
-                                                 self._length_size.value,
-                                                 self._base_offset_size.value)
-            item.parse_fields(bstr, header)
-            self._items.append(item)
-
 
 class ItemLocationBoxItemFieldsList(AbstractFieldsList):
-    def __init__(self, index_size, offset_size, length_size, base_offset_size):
+    def __init__(self, base_offset_size):
         # TODO: do mention that ItemLocationBoxItemFieldsList does not make
         #  use of super()
         AbstractFieldsList.__init__(self, 6)
-
-        self._index_size = 0 if index_size is None else index_size
-        self._offset_size = offset_size
-        self._length_size = length_size
 
         self._item_id = \
             self._register_field(Field(value_type="uintbe", size=32))
@@ -1086,12 +1065,6 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
             self._register_field(Field(value_type="uintbe", size=base_offset_size * 8))
         self._extent_count = \
             self._register_field(Field(value_type="uintbe", size=16))
-
-        self._extents = []
-
-    def __bytes__(self):
-        box_bytes = super().__bytes__()
-        return b''.join([box_bytes] + [bytes(box) for box in self._extents])
 
     @property
     def item_id(self):
@@ -1133,10 +1106,6 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
     def extent_count(self, value):
         self._set_field(self._extent_count, *value)
 
-    @property
-    def extents(self):
-        return self._extents
-
     def parse_fields(self, bstr, header):
         if header.version < 2:
             self._item_id.type = "uintbe:16"
@@ -1152,13 +1121,6 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
             self._read_field(bstr, self._base_offset)
 
         self._read_field(bstr, self._extent_count)
-
-        for i in range(self._extent_count.value):
-            extent = ItemLocationBoxItemExtentFieldsList(self._index_size,
-                                                         self._offset_size,
-                                                         self._length_size)
-            extent.parse_fields(bstr, header)
-            self._extents.append(extent)
 
 
 class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
@@ -1302,11 +1264,6 @@ class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
         super().__init__(length + 1)
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
-        self._entries = []
-
-    def __bytes__(self):
-        box_bytes = super().__bytes__()
-        return b''.join([box_bytes] + [bytes(box) for box in self._entries])
 
     @property
     def entry_count(self):
@@ -1316,17 +1273,8 @@ class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
     def entry_count(self, value):
         self._set_field(self._entry_count, *value)
 
-    @property
-    def entries(self):
-        return self._entries
-
     def parse_fields(self, bstr, header):
         self._read_field(bstr, self._entry_count)
-
-        for i in range(self._entry_count.value):
-            entry_field = ItemPropertyAssociationBoxEntryFieldsList()
-            entry_field.parse_fields(bstr, header)
-            self._entries.append(entry_field)
 
 
 class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
@@ -1337,11 +1285,6 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
             self._register_field(Field(value_type="uintbe", size=32))
         self._association_count = \
             self._register_field(Field(value_type="uintbe", size=8))
-        self._associations = []
-
-    def __bytes__(self):
-        box_bytes = super().__bytes__()
-        return b''.join([box_bytes] + [bytes(box) for box in self._associations])
 
     @property
     def item_id(self):
@@ -1359,10 +1302,6 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
     def association_count(self, value):
         self._set_field(self._association_count, *value)
 
-    @property
-    def associations(self):
-        return self._associations
-
     def parse_fields(self, bstr, header):
         if header.version < 1:
             self._item_id.type = "uintbe:16"
@@ -1370,13 +1309,8 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._item_id)
         self._read_field(bstr, self._association_count)
 
-        for i in range(self._association_count.value):
-            association = ItemPropertyAssociationBoxEntryassociationsFieldsList()
-            association.parse_fields(bstr, header)
-            self._associations.append(association)
 
-
-class ItemPropertyAssociationBoxEntryassociationsFieldsList(AbstractFieldsList):
+class ItemPropertyAssociationBoxEntryAssociationsFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 3)
 
