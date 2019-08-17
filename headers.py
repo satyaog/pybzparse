@@ -24,9 +24,29 @@ class BoxHeader(BoxHeaderFieldsList):
     def type(self):
         return self._type_cache
 
+    @type.setter
+    def type(self, value):
+        if value[:4] == b'uuid':
+            self._set_field(self._box_type, value[:4])
+            self._set_field(self._user_type, value[4:])
+        else:
+            self._set_field(self._box_type, value)
+            self._drop_field(self._user_type)
+        self._refresh_cache(len(bytes(self)))
+
     @property
     def box_size(self):
         return self._box_size_cache
+
+    @box_size.setter
+    def box_size(self, value):
+        if value > MAX_UINT_32:
+            self._set_field(self._box_size, 1)
+            self._set_field(self._box_ext_size, value)
+        else:
+            self._set_field(self._box_size, value)
+            self._drop_field(self._box_ext_size)
+        self._refresh_cache(len(bytes(self)))
 
     @property
     def header_size(self):

@@ -62,6 +62,13 @@ class AbstractBox(metaclass=ABCMeta):
     def parse_impl(self, bstr):
         raise NotImplemented()
 
+    def refresh_box_size(self):
+        # TODO: this could be optimized if needed
+        box_size = len(b''.join([bytes(self._header), self._get_content_bytes(),
+                                 self.padding]))
+        if self._header.box_size != box_size:
+            self._header.box_size = box_size
+
     @abstractmethod
     def _get_content_bytes(self):
         raise NotImplemented()
@@ -93,6 +100,15 @@ class ContainerBox(AbstractBox, MixinDictRepr):
     def boxes(self):
         return self._boxes
 
+    def append(self, box):
+        self._boxes.append(box)
+
+    def clear(self):
+        del self._boxes[:]
+
+    def pop(self):
+        return self._boxes.pop()
+
     def load(self, bstr):
         for box in self._boxes:
             box.load(bstr)
@@ -118,6 +134,19 @@ class ContainerBox(AbstractBox, MixinDictRepr):
         box_iterator = Parser.parse(bstr, recursive=recursive)
         while bstr.bytepos < end_pos:
             self._boxes.append(next(box_iterator))
+
+    def refresh_box_size(self):
+        self.refresh_boxes_size()
+        box_size = 0
+        for box in self._boxes:
+            box_size += box.header.box_size
+        box_size += len(b''.join([bytes(self._header), self.padding]))
+        if self._header.box_size != box_size:
+            self._header.box_size = box_size
+
+    def refresh_boxes_size(self):
+        for box in self._boxes:
+            box.refresh_box_size()
 
     def _get_content_bytes(self):
         return b''.join([bytes(box) for box in self._boxes])
@@ -338,6 +367,19 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
         SampleDescriptionBoxFieldsList.__init__(self)
         super().__init__(header)
 
+    def append(self, box):
+        super().append(box)
+        self._entry_count.value += 1
+
+    def clear(self):
+        super().clear()
+        self._entry_count.value = 0
+
+    def pop(self):
+        box = super().pop()
+        self._entry_count.value -= 1
+        return box
+
     def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
         self._boxes_start_pos = bstr.bytepos
@@ -372,6 +414,19 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     def __init__(self, header):
         DataReferenceBoxFieldsList.__init__(self)
         super().__init__(header)
+
+    def append(self, box):
+        super().append(box)
+        self._entry_count.value += 1
+
+    def clear(self):
+        super().clear()
+        self._entry_count.value = 0
+
+    def pop(self):
+        box = super().pop()
+        self._entry_count.value -= 1
+        return box
 
     def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
@@ -418,6 +473,19 @@ class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRe
     def __init__(self, header):
         ItemInformationBoxFieldsList.__init__(self)
         super().__init__(header)
+
+    def append(self, box):
+        super().append(box)
+        self._entry_count.value += 1
+
+    def clear(self):
+        super().clear()
+        self._entry_count.value = 0
+
+    def pop(self):
+        box = super().pop()
+        self._entry_count.value -= 1
+        return box
 
     def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)

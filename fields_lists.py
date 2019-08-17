@@ -70,7 +70,9 @@ class AbstractFieldsList:
                 self._end_index = field.index + 1
             if field.value is None:
                 self._fields[field.index] = field
-        field.value = value
+            field.value = value
+        else:
+            self._drop_field(field)
         if value_type is not None:
             field.type = value_type
 
@@ -91,6 +93,9 @@ class AbstractFieldsList:
         field.index = self._end_index
         self._end_index += 1
         return field
+
+    def _drop_field(self, field):
+        self._fields[field.index] = None
 
     @property
     def fields(self):
