@@ -1,4 +1,9 @@
 from fieldslists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
+from pybzparse import Parser
+from ctypes import c_uint32
+
+
+MAX_UINT_32 = c_uint32(-1).value
 
 
 class BoxHeader(BoxHeaderFieldsList):
@@ -34,9 +39,9 @@ class BoxHeader(BoxHeaderFieldsList):
     def parse(self, bstr):
         self._start_pos = bstr.bytepos
         self.parse_fields(bstr)
-        self._update_cache(bstr.bytepos - self._start_pos)
+        self._refresh_cache(bstr.bytepos - self._start_pos)
 
-    def _update_cache(self, header_size):
+    def _refresh_cache(self, header_size):
         self._type_cache = (self._box_type.value + self._user_type.value
                             if self._user_type.value is not None
                             else self._box_type.value)
@@ -63,7 +68,11 @@ class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList, BoxHeaderFieldsList):
 
         self._start_pos = header.start_pos
         self._parse_extend_fields(bstr)
-        self._update_cache(bstr.bytepos - self._start_pos)
+        self._refresh_cache(bstr.bytepos - self._start_pos)
 
     def _parse_extend_fields(self, bstr):
         FullBoxHeaderFieldsList.parse_fields(self, bstr)
+
+
+# Register header
+Parser.register_box_header(BoxHeader)

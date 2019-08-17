@@ -2,8 +2,9 @@
 
 from bitstring import pack
 
+import boxes as bx_def
+import headers
 import fieldslists as flists
-import pybzparse as parse
 from pybzparse import Parser
 
 
@@ -20,13 +21,13 @@ def test_header_fields_list():
 
 
 def test_header_extended_fields_list():
-    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", parse.MAX_UINT_32 + 1)
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", headers.MAX_UINT_32 + 1)
     fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"abcd"
-    assert fields_list.box_ext_size == parse.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
     assert fields_list.user_type is None
     assert bytes(fields_list) == bs.bytes
 
@@ -46,13 +47,13 @@ def test_header_user_type_fields_list():
 
 def test_header_extended_user_type_fields_list():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              parse.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
     fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"uuid"
-    assert fields_list.box_ext_size == parse.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
     assert fields_list.user_type == b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
     assert bytes(fields_list) == bs.bytes
 
@@ -70,14 +71,14 @@ def test_box_header():
 
 
 def test_box_header_extended():
-    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", parse.MAX_UINT_32 + 1)
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", headers.MAX_UINT_32 + 1)
     box_header = Parser.parse_header(bs)
 
     assert box_header.start_pos == 0
     assert box_header.type == b"abcd"
-    assert box_header.box_size == parse.MAX_UINT_32 + 1
+    assert box_header.box_size == headers.MAX_UINT_32 + 1
     assert box_header.header_size == 16
-    assert box_header.content_size == parse.MAX_UINT_32 + 1 - 16
+    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 16
     assert bytes(box_header) == bs.bytes
 
 
@@ -96,14 +97,14 @@ def test_box_header_user_type():
 
 def test_box_header_extended_user_type():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              parse.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
     box_header = Parser.parse_header(bs)
 
     assert box_header.start_pos == 0
     assert box_header.type == b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    assert box_header.box_size == parse.MAX_UINT_32 + 1
+    assert box_header.box_size == headers.MAX_UINT_32 + 1
     assert box_header.header_size == 32
-    assert box_header.content_size == parse.MAX_UINT_32 + 1 - 32
+    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 32
     assert bytes(box_header) == bs.bytes
 
 
@@ -111,7 +112,7 @@ def test_full_box_header():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               100, b"abcd", 1, b"\x00\x00\x07")
     box_header = Parser.parse_header(bs)
-    full_box_header = parse.FullBoxHeader()
+    full_box_header = bx_def.FullBoxHeader()
     full_box_header.extend_header(bs, box_header)
     del box_header
 
@@ -133,7 +134,7 @@ def test_ftyp_box():
               b"mp42", 0, b"mp42mp41iso4")
 
     box_header = Parser.parse_header(bs)
-    ftyp = parse.FTYP.parse_box(bs, box_header)
+    ftyp = bx_def.FTYP.parse_box(bs, box_header)
     box = ftyp
 
     assert box.header.start_pos == 0
@@ -162,7 +163,7 @@ def test_mvhd_header_box():
               3)
 
     box_header = Parser.parse_header(bs)
-    mvhd = parse.MVHD.parse_box(bs, box_header)
+    mvhd = bx_def.MVHD.parse_box(bs, box_header)
     box = mvhd
 
     assert box.header.start_pos == 0
@@ -200,7 +201,7 @@ def test_tkhd_header_box():
               318, 0, 180, 0)
 
     box_header = Parser.parse_header(bs)
-    tkhd = parse.TKHD.parse_box(bs, box_header)
+    tkhd = bx_def.TKHD.parse_box(bs, box_header)
     box = tkhd
 
     assert box.header.start_pos == 0
@@ -237,7 +238,7 @@ def test_mdhd_header_box():
               0x1, 21, 14, 4, b"\x00" * 2)
 
     box_header = Parser.parse_header(bs)
-    mdhd = parse.MDHD.parse_box(bs, box_header)
+    mdhd = bx_def.MDHD.parse_box(bs, box_header)
     box = mdhd
 
     assert box.header.start_pos == 0
@@ -264,7 +265,7 @@ def test_hdlr_box():
               0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"Vireo Eyes v2.4.22\0")
 
     box_header = Parser.parse_header(bs)
-    hdlr = parse.HDLR.parse_box(bs, box_header)
+    hdlr = bx_def.HDLR.parse_box(bs, box_header)
     box = hdlr
 
     assert box.header.start_pos == 0
@@ -287,7 +288,7 @@ def test_vmhd_header_box():
               0, 0, 0, 0)
 
     box_header = Parser.parse_header(bs)
-    vmhd = parse.VMHD.parse_box(bs, box_header)
+    vmhd = bx_def.VMHD.parse_box(bs, box_header)
     box = vmhd
 
     assert box.header.start_pos == 0

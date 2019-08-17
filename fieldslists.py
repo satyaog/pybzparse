@@ -1,43 +1,44 @@
 import bitstring as bs
 
 
+class Field:
+    def __init__(self, index=None, value=None, value_type=None, size=None,
+                 is_list=False, is_string=False):
+        self.index = index
+        self.value = value
+        self._value_type = value_type
+        self._value_size = size
+        self._is_list = is_list
+        self._is_string = is_string
+
+    def __repr__(self, *args, **kwargs):
+        return "{type}:{value}".format(type=self.type, value=self.value)
+
+    @property
+    def value_size(self):
+        return 0 if self._value_size is None else self._value_size
+
+    @property
+    def type(self):
+        return self._value_type if self._value_size is None else \
+            "{}:{}".format(self._value_type, self._value_size)
+
+    @type.setter
+    def type(self, value):
+        split_iter = iter(value.split(':'))
+        self._value_type = next(split_iter, None)
+        self._value_size = next(split_iter, None)
+
+    @property
+    def is_list(self):
+        return self._is_list
+
+    @property
+    def is_string(self):
+        return self._is_string
+
+
 class AbstractFieldsList:
-    class Field:
-        def __init__(self, index=None, value=None, value_type=None, size=None,
-                     is_list=False, is_string=False):
-            self.index = index
-            self.value = value
-            self._value_type = value_type
-            self._value_size = size
-            self._is_list = is_list
-            self._is_string = is_string
-
-        def __repr__(self, *args, **kwargs):
-            return "{type}:{value}".format(type=self.type, value=self.value)
-
-        @property
-        def value_size(self):
-            return 0 if self._value_size is None else self._value_size
-
-        @property
-        def type(self):
-            return self._value_type if self._value_size is None else \
-                   "{}:{}".format(self._value_type, self._value_size)
-
-        @type.setter
-        def type(self, value):
-            split_iter = iter(value.split(':'))
-            self._value_type = next(split_iter, None)
-            self._value_size = next(split_iter, None)
-
-        @property
-        def is_list(self):
-            return self._is_list
-
-        @property
-        def is_string(self):
-            return self._is_string
-
     def __init__(self, length):
         self._fields = [None] * length
         self._end_index = 0
@@ -57,7 +58,6 @@ class AbstractFieldsList:
         return bs.pack(','.join(types), *values).bytes
 
     def __len__(self):
-        """ Define the length of the split """
         # TODO: this could be optimized if needed
         return len([field for field in self._fields[:self._end_index]
                     if field is not None])
@@ -103,10 +103,10 @@ class BoxHeaderFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 4)
 
-        self._box_size = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._box_type = self._register_field(self.Field(value_type="bytes", size=4))
-        self._box_ext_size = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._user_type = self._register_field(self.Field(value_type="bytes", size=16))
+        self._box_size = self._register_field(Field(value_type="uintbe", size=32))
+        self._box_type = self._register_field(Field(value_type="bytes", size=4))
+        self._box_ext_size = self._register_field(Field(value_type="uintbe", size=64))
+        self._user_type = self._register_field(Field(value_type="bytes", size=16))
 
     @property
     def box_size(self):
@@ -145,7 +145,6 @@ class BoxHeaderFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._box_type)
 
         # if size == 1, then this is an extended size type.
-        # Therefore read the next 64 bits as size
         if self._box_size.value == 1:
             self._read_field(bstr, self._box_ext_size)
 
@@ -157,8 +156,8 @@ class FullBoxHeaderFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 2)
 
-        self._version = self._register_field(self.Field(value_type="uintbe", size=8))
-        self._flags = self._register_field(self.Field(value_type="bits", size=24))
+        self._version = self._register_field(Field(value_type="uintbe", size=8))
+        self._flags = self._register_field(Field(value_type="bits", size=24))
 
     @property
     def version(self):
@@ -185,7 +184,7 @@ class DataBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._data = self._register_field(self.Field(value_type="bytes"))
+        self._data = self._register_field(Field(value_type="bytes"))
 
     @property
     def data(self):
@@ -205,9 +204,12 @@ class FileTypeBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 3)
 
-        self._major_brand = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._minor_version = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._compatible_brands = self._register_field(self.Field(value_type="uintbe", size=32, is_list=True))
+        self._major_brand = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._minor_version = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._compatible_brands = \
+            self._register_field(Field(value_type="uintbe", size=32, is_list=True))
 
     @property
     def major_brand(self):
@@ -245,24 +247,35 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 11)
 
-        self._creation_time = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._modification_time = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._timescale = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._duration = self._register_field(self.Field(value_type="uintbe", size=64))
+        self._creation_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._modification_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._timescale = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._duration = \
+            self._register_field(Field(value_type="uintbe", size=64))
 
-        self._rate = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._volume = self._register_field(self.Field(value_type="uintbe", size=16))
+        self._rate = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._volume = \
+            self._register_field(Field(value_type="uintbe", size=16))
 
-        self._reserved0 = self._register_field(self.Field(value_type="bits", size=16))
-        self._reserved1 = self._register_field(self.Field(value_type="bits", size=32, is_list=True))
+        self._reserved0 = \
+            self._register_field(Field(value_type="bits", size=16))
+        self._reserved1 = \
+            self._register_field(Field(value_type="bits", size=32, is_list=True))
         self._reserved1_length = 32 * 2
 
-        self._matrix = self._register_field(self.Field(value_type="uintbe", size=32, is_list=True))
+        self._matrix = \
+            self._register_field(Field(value_type="uintbe", size=32, is_list=True))
         self._matrix_length = 32 * 9
-        self._pre_defined = self._register_field(self.Field(value_type="bits", size=32, is_list=True))
+        self._pre_defined = \
+            self._register_field(Field(value_type="bits", size=32, is_list=True))
         self._pre_defined_length = 32 * 6
 
-        self._next_track_id = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._next_track_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
 
     @property
     def creation_time(self):
@@ -337,16 +350,16 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
         self._set_field(self._next_track_id, *value)
 
     def parse_fields(self, bstr, header):
-        if header.version == 1:
-            self._read_field(bstr, self._creation_time)
-            self._read_field(bstr, self._modification_time)
-            self._read_field(bstr, self._timescale)
-            self._read_field(bstr, self._duration)
-        else:
-            self._read_field(bstr, self._creation_time, value_type="uintbe:32")
-            self._read_field(bstr, self._modification_time, value_type="uintbe:32")
-            self._read_field(bstr, self._timescale, value_type="uintbe:32")
-            self._read_field(bstr, self._duration, value_type="uintbe:32")
+        if header.version != 1:
+            self._creation_time.type = "uintbe:32"
+            self._modification_time.type = "uintbe:32"
+            self._timescale.type = "uintbe:32"
+            self._duration.type = "uintbe:32"
+
+        self._read_field(bstr, self._creation_time)
+        self._read_field(bstr, self._modification_time)
+        self._read_field(bstr, self._timescale)
+        self._read_field(bstr, self._duration)
 
         self._read_field(bstr, self._rate)
         self._read_field(bstr, self._volume)
@@ -368,28 +381,41 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 13)
 
-        self._creation_time = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._modification_time = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._track_id = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._reserved0 = self._register_field(self.Field(value_type="bits", size=32))
-        self._duration = self._register_field(self.Field(value_type="uintbe", size=64))
+        self._creation_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._modification_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._track_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._reserved0 = \
+            self._register_field(Field(value_type="bits", size=32))
+        self._duration = \
+            self._register_field(Field(value_type="uintbe", size=64))
 
-        self._reserved1 = self._register_field(self.Field(value_type="bits", size=32, is_list=True))
+        self._reserved1 = \
+            self._register_field(Field(value_type="bits", size=32, is_list=True))
         self._reserved1_length = 32 * 2
 
-        self._layer = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._alternate_group = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._volume = self._register_field(self.Field(value_type="uintbe", size=16))
+        self._layer = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._alternate_group = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._volume = \
+            self._register_field(Field(value_type="uintbe", size=16))
 
-        self._reserved2 = self._register_field(self.Field(value_type="bits", size=16))
+        self._reserved2 = \
+            self._register_field(Field(value_type="bits", size=16))
 
-        self._matrix = self._register_field(self.Field(value_type="uintbe", size=32, is_list=True))
+        self._matrix = \
+            self._register_field(Field(value_type="uintbe", size=32, is_list=True))
         self._matrix_length = 32 * 9
 
         # TODO: create a 16.16 float representation
-        self._width = self._register_field(self.Field(value_type="uintbe", size=16, is_list=True))
+        self._width = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
         self._width_length = 16 * 2
-        self._height = self._register_field(self.Field(value_type="uintbe", size=16, is_list=True))
+        self._height = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
         self._height_length = 16 * 2
 
     @property
@@ -473,18 +499,18 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
         self._set_field(self._height, *value)
 
     def parse_fields(self, bstr, header):
-        if header.version == 1:
-            self._read_field(bstr, self._creation_time)
-            self._read_field(bstr, self._modification_time)
-            self._read_field(bstr, self._track_id)
-            self._read_field(bstr, self._reserved0)
-            self._read_field(bstr, self._duration)
-        else:
-            self._read_field(bstr, self._creation_time, value_type="uintbe:32")
-            self._read_field(bstr, self._modification_time, value_type="uintbe:32")
-            self._read_field(bstr, self._track_id, value_type="uintbe:32")
-            self._read_field(bstr, self._reserved0, value_type="uintbe:32")
-            self._read_field(bstr, self._duration, value_type="uintbe:32")
+        if header.version != 1:
+            self._creation_time.type = "uintbe:32"
+            self._modification_time.type = "uintbe:32"
+            self._track_id.type = "uintbe:32"
+            self._reserved0.type = "uintbe:32"
+            self._duration.type = "uintbe:32"
+
+        self._read_field(bstr, self._creation_time)
+        self._read_field(bstr, self._modification_time)
+        self._read_field(bstr, self._track_id)
+        self._read_field(bstr, self._reserved0)
+        self._read_field(bstr, self._duration)
 
         self._read_field(bstr, self._reserved1,
                          until_pos=bstr.bitpos + self._reserved1_length)
@@ -509,17 +535,24 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 7)
 
-        self._creation_time = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._modification_time = self._register_field(self.Field(value_type="uintbe", size=64))
-        self._timescale = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._duration = self._register_field(self.Field(value_type="uintbe", size=64))
+        self._creation_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._modification_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._timescale = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._duration = \
+            self._register_field(Field(value_type="uintbe", size=64))
 
-        self._pad0 = self._register_field(self.Field(value_type="bits", size=1))
+        self._pad0 = \
+            self._register_field(Field(value_type="bits", size=1))
 
         # TODO: check if uintbe can be used here
-        self._language = self._register_field(self.Field(value_type="uint", size=5, is_list=True))
+        self._language = \
+            self._register_field(Field(value_type="uint", size=5, is_list=True))
         self._language_length = 5 * 3
-        self._pre_defined = self._register_field(self.Field(value_type="uintbe", size=16))
+        self._pre_defined = \
+            self._register_field(Field(value_type="uintbe", size=16))
 
     @property
     def creation_time(self):
@@ -570,16 +603,16 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
         self._set_field(self._pre_defined, *value)
 
     def parse_fields(self, bstr, header):
-        if header.version == 1:
-            self._read_field(bstr, self._creation_time)
-            self._read_field(bstr, self._modification_time)
-            self._read_field(bstr, self._timescale)
-            self._read_field(bstr, self._duration)
-        else:
-            self._read_field(bstr, self._creation_time, value_type="uintbe:32")
-            self._read_field(bstr, self._modification_time, value_type="uintbe:32")
-            self._read_field(bstr, self._timescale, value_type="uintbe:32")
-            self._read_field(bstr, self._duration, value_type="uintbe:32")
+        if header.version != 1:
+            self._creation_time.type = "uintbe:32"
+            self._modification_time.type = "uintbe:32"
+            self._timescale.type = "uintbe:32"
+            self._duration.type = "uintbe:32"
+
+        self._read_field(bstr, self._creation_time)
+        self._read_field(bstr, self._modification_time)
+        self._read_field(bstr, self._timescale)
+        self._read_field(bstr, self._duration)
 
         self._read_field(bstr, self._pad0)
 
@@ -592,13 +625,17 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 4)
 
-        self._pre_defined = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._handler_type = self._register_field(self.Field(value_type="bytes", size=4))
+        self._pre_defined = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._handler_type = \
+            self._register_field(Field(value_type="bytes", size=4))
 
-        self._reserved0 = self._register_field(self.Field(value_type="bits", size=32, is_list=True))
+        self._reserved0 = \
+            self._register_field(Field(value_type="bits", size=32, is_list=True))
         self._reserved0_length = 32 * 3
 
-        self._name = self._register_field(self.Field(value_type="bytes", is_string=True))
+        self._name = \
+            self._register_field(Field(value_type="bytes", is_string=True))
 
     @property
     def pre_defined(self):
@@ -641,8 +678,10 @@ class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 2)
 
-        self._graphicsmode = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._opcolor = self._register_field(self.Field(value_type="uintbe", size=16, is_list=True))
+        self._graphicsmode = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._opcolor = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
         self._opcolor_length = 16 * 3
 
     @property
@@ -673,7 +712,7 @@ class SampleDescriptionBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._entry_count = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
 
     @property
     def entry_count(self):
@@ -693,7 +732,7 @@ class DataReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._entry_count = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
 
     @property
     def entry_count(self):
@@ -712,7 +751,7 @@ class PrimaryItemBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._item_id = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._item_id = self._register_field(Field(value_type="uintbe", size=32))
 
     @property
     def item_id(self):
@@ -724,16 +763,16 @@ class PrimaryItemBoxFieldsList(AbstractFieldsList):
 
     def parse_fields(self, bstr, header):
         if header.version == 0:
-            self._read_field(bstr, self._item_id, value_type="uintbe:16")
-        else:
-            self._read_field(bstr, self._item_id)
+            self._item_id.type = "uintbe:16"
+
+        self._read_field(bstr, self._item_id)
 
 
 class ItemInformationBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._entry_count = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
 
     @property
     def entry_count(self):
@@ -745,9 +784,9 @@ class ItemInformationBoxFieldsList(AbstractFieldsList):
 
     def parse_fields(self, bstr, header):
         if header.version == 0:
-            self._read_field(bstr, self._entry_count, value_type="uintbe:16")
-        else:
-            self._read_field(bstr, self._entry_count)
+            self._entry_count.type = "uintbe:16"
+
+        self._read_field(bstr, self._entry_count)
 
 
 # dref boxes
@@ -755,7 +794,7 @@ class DataEntryUrlBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._location = self._register_field(self.Field(value_type="bytes", is_string=True))
+        self._location = self._register_field(Field(value_type="bytes", is_string=True))
 
     @property
     def location(self):
@@ -776,8 +815,8 @@ class DataEntryUrnBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 2)
 
-        self._name = self._register_field(self.Field(value_type="bytes", is_string=True))
-        self._location = self._register_field(self.Field(value_type="bytes", is_string=True))
+        self._name = self._register_field(Field(value_type="bytes", is_string=True))
+        self._location = self._register_field(Field(value_type="bytes", is_string=True))
 
     @property
     def location(self):
@@ -809,15 +848,23 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 8)
 
-        self._item_id = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._item_protection_index = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._item_type = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._item_name = self._register_field(self.Field(value_type="bytes", is_string=True))
-        self._item_uri_type = self._register_field(self.Field(value_type="bytes", is_string=True))
-        self._content_type = self._register_field(self.Field(value_type="bytes", is_string=True))
-        self._content_encoding = self._register_field(self.Field(value_type="bytes", is_string=True))
+        self._item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._item_protection_index = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._item_type = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._item_name = \
+            self._register_field(Field(value_type="bytes", is_string=True))
+        self._item_uri_type = \
+            self._register_field(Field(value_type="bytes", is_string=True))
+        self._content_type = \
+            self._register_field(Field(value_type="bytes", is_string=True))
+        self._content_encoding = \
+            self._register_field(Field(value_type="bytes", is_string=True))
 
-        self._extension_type = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._extension_type = \
+            self._register_field(Field(value_type="uintbe", size=32))
 
     @property
     def item_id(self):
@@ -884,6 +931,9 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
         self._set_field(self._extension_type, *value)
 
     def parse_fields(self, bstr, header):
+        if header.version == 2:
+            self._item_id.type = "uintbe:16"
+
         end = header.start_pos + header.box_size
 
         if header.version == 0 or header.version == 1:
@@ -900,10 +950,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
                 self._read_field(bstr, self._extension_type)
 
         elif header.version == 2 or header.version == 3:
-            if header.version == 2:
-                self._read_field(bstr, self._item_id, value_type="uintbe:16")
-            else:
-                self._read_field(bstr, self._item_id)
+            self._read_field(bstr, self._item_id)
             self._read_field(bstr, self._item_protection_index)
             self._read_field(bstr, self._item_type)
 
@@ -930,13 +977,19 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 6)
 
-        self._offset_size = self._register_field(self.Field(value_type="uint", size=4))
-        self._length_size = self._register_field(self.Field(value_type="uint", size=4))
-        self._base_offset_size = self._register_field(self.Field(value_type="uint", size=4))
-        self._index_size = self._register_field(self.Field(value_type="uint", size=4))
-        self._reserved0 = self._register_field(self.Field(value_type="uint", size=4))
+        self._offset_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._length_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._base_offset_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._index_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._reserved0 = \
+            self._register_field(Field(value_type="uint", size=4))
 
-        self._item_count = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._item_count = \
+            self._register_field(Field(value_type="uintbe", size=32))
         self._items = []
 
     def __bytes__(self):
@@ -988,6 +1041,9 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
         return self._items
 
     def parse_fields(self, bstr, header):
+        if header.version < 2:
+            self._item_count.type = "uintbe:16"
+
         self._read_field(bstr, self._offset_size)
         self._read_field(bstr, self._length_size)
         self._read_field(bstr, self._base_offset_size)
@@ -997,10 +1053,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
         else:
             self._read_field(bstr, self._reserved0)
 
-        if header.version < 2:
-            self._read_field(bstr, self._item_count, value_type="uintbe:16")
-        elif header.version == 2:
-            self._read_field(bstr, self._item_count)
+        self._read_field(bstr, self._item_count)
 
         for i in range(self._item_count.value):
             item = ItemLocationBoxItemFieldsList(self._index_size.value,
@@ -1021,12 +1074,18 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
         self._offset_size = offset_size
         self._length_size = length_size
 
-        self._item_id = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._reserved0 = self._register_field(self.Field(value_type="uint", size=12))
-        self._construction_method = self._register_field(self.Field(value_type="uint", size=4))
-        self._data_reference_index = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._base_offset = self._register_field(self.Field(value_type="uintbe", size=base_offset_size * 8))
-        self._extent_count = self._register_field(self.Field(value_type="uintbe", size=16))
+        self._item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._reserved0 = \
+            self._register_field(Field(value_type="uint", size=12))
+        self._construction_method = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._data_reference_index = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._base_offset = \
+            self._register_field(Field(value_type="uintbe", size=base_offset_size * 8))
+        self._extent_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
 
         self._extents = []
 
@@ -1080,9 +1139,9 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
     def parse_fields(self, bstr, header):
         if header.version < 2:
-            self._read_field(bstr, self._item_id, value_type="uintbe:16")
-        elif header.version == 2:
-            self._read_field(bstr, self._item_id)
+            self._item_id.type = "uintbe:16"
+
+        self._read_field(bstr, self._item_id)
 
         if header.version == 1 or header.version == 2:
             self._read_field(bstr, self._reserved0)
@@ -1108,9 +1167,12 @@ class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
         #  make use of super()
         AbstractFieldsList.__init__(self, 3)
 
-        self._extent_index = self._register_field(self.Field(value_type="uintbe", size=index_size * 8))
-        self._extent_offset = self._register_field(self.Field(value_type="uintbe", size=offset_size * 8))
-        self._extent_length = self._register_field(self.Field(value_type="uintbe", size=length_size * 8))
+        self._extent_index = \
+            self._register_field(Field(value_type="uintbe", size=index_size * 8))
+        self._extent_offset = \
+            self._register_field(Field(value_type="uintbe", size=offset_size * 8))
+        self._extent_length = \
+            self._register_field(Field(value_type="uintbe", size=length_size * 8))
 
     @property
     def extent_index(self):
@@ -1152,9 +1214,12 @@ class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 3)
 
-        self._from_item_id = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._reference_count = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._to_item_ids = self._register_field(self.Field(value_type="uintbe", size=16, is_list=True))
+        self._from_item_id = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._reference_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._to_item_ids = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
 
     @property
     def from_item_id(self):
@@ -1192,9 +1257,12 @@ class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 3)
 
-        self._from_item_id = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._reference_count = self._register_field(self.Field(value_type="uintbe", size=16))
-        self._to_item_ids = self._register_field(self.Field(value_type="uintbe", size=32, is_list=True))
+        self._from_item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._reference_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._to_item_ids = \
+            self._register_field(Field(value_type="uintbe", size=32, is_list=True))
 
     @property
     def from_item_id(self):
@@ -1233,7 +1301,7 @@ class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 1)
 
-        self._entry_count = self._register_field(self.Field(value_type="uintbe", size=32))
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
         self._entries = []
 
     def __bytes__(self):
@@ -1265,8 +1333,10 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 2)
 
-        self._item_id = self._register_field(self.Field(value_type="uintbe", size=32))
-        self._association_count = self._register_field(self.Field(value_type="uintbe", size=8))
+        self._item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._association_count = \
+            self._register_field(Field(value_type="uintbe", size=8))
         self._associations = []
 
     def __bytes__(self):
@@ -1295,9 +1365,9 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
 
     def parse_fields(self, bstr, header):
         if header.version < 1:
-            self._read_field(bstr, self._item_id, value_type="uintbe:16")
-        else:
-            self._read_field(bstr, self._item_id)
+            self._item_id.type = "uintbe:16"
+
+        self._read_field(bstr, self._item_id)
         self._read_field(bstr, self._association_count)
 
         for i in range(self._association_count.value):
@@ -1310,9 +1380,12 @@ class ItemPropertyAssociationBoxEntryassociationsFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 3)
 
-        self._essential = self._register_field(self.Field(value_type="bits", size=1))
-        self._property_index_8b = self._register_field(self.Field(value_type="uint", size=8))
-        self._property_index_7b = self._register_field(self.Field(value_type="uint", size=7))
+        self._essential = \
+            self._register_field(Field(value_type="bits", size=1))
+        self._property_index_8b = \
+            self._register_field(Field(value_type="uint", size=8))
+        self._property_index_7b = \
+            self._register_field(Field(value_type="uint", size=7))
         self._property_index_cache = None
 
     @property
