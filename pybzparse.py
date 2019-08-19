@@ -73,7 +73,7 @@ class AbstractFullBox(AbstractBox, metaclass=ABCMeta):
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(AbstractFullBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 class MixinDictRepr(object):
@@ -94,8 +94,9 @@ class UnknownBox(AbstractBox, MixinDictRepr):
     type = b"____"
 
     def __init__(self, header):
+        super().__init__(header)
+
         self._payload = b''
-        super(UnknownBox, self).__init__(header)
 
     @property
     def payload(self):
@@ -119,7 +120,7 @@ class UnknownBox(AbstractBox, MixinDictRepr):
 class DataBox(AbstractBox, DataBoxFieldsList, MixinDictRepr):
     def __init__(self, header):
         DataBoxFieldsList.__init__(self)
-        super(DataBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -134,7 +135,8 @@ class DataBox(AbstractBox, DataBoxFieldsList, MixinDictRepr):
 
 class ContainerBox(AbstractBox, MixinDictRepr):
     def __init__(self, header):
-        super(ContainerBox, self).__init__(header)
+        super().__init__(header)
+
         self._boxes_start_pos = None
         self._boxes = []
 
@@ -185,7 +187,7 @@ class FileTypeBox(AbstractBox, FileTypeBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         FileTypeBoxFieldsList.__init__(self)
-        super(FileTypeBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -213,7 +215,7 @@ class MetaBox(ContainerBox, MixinDictRepr):
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(MetaBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 # moov boxes
@@ -222,7 +224,7 @@ class MovieHeaderBox(AbstractFullBox, MovieHeaderBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         MovieHeaderBoxFieldsList.__init__(self)
-        super(MovieHeaderBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -244,7 +246,7 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         TrackHeaderBoxFieldsList.__init__(self)
-        super(TrackHeaderBox, self).__init__(header)
+        super().__init__(header)
 
     @property
     def width(self):
@@ -278,7 +280,7 @@ class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         MediaHeaderBoxFieldsList.__init__(self)
-        super(MediaHeaderBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -295,7 +297,7 @@ class HandlerReferenceBox(AbstractFullBox, HandlerReferenceBoxFieldsList, MixinD
 
     def __init__(self, header):
         HandlerReferenceBoxFieldsList.__init__(self)
-        super(HandlerReferenceBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -321,7 +323,7 @@ class VideoMediaHeaderBox(AbstractFullBox, VideoMediaHeaderBoxFieldsList, MixinD
 
     def __init__(self, header):
         VideoMediaHeaderBoxFieldsList.__init__(self)
-        super(VideoMediaHeaderBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -343,7 +345,7 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
 
     def __init__(self, header):
         SampleDescriptionBoxFieldsList.__init__(self)
-        super(SampleDescriptionBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -364,7 +366,7 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(SampleDescriptionBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 # dinf boxes
@@ -373,7 +375,7 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         DataReferenceBoxFieldsList.__init__(self)
-        super(DataReferenceBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -394,7 +396,7 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(DataReferenceBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 class PrimaryItemBox(AbstractFullBox, PrimaryItemBoxFieldsList, MixinDictRepr):
@@ -402,7 +404,7 @@ class PrimaryItemBox(AbstractFullBox, PrimaryItemBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         PrimaryItemBoxFieldsList.__init__(self)
-        super(PrimaryItemBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -419,7 +421,7 @@ class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRe
 
     def __init__(self, header):
         ItemInformationBoxFieldsList.__init__(self)
-        super(ItemInformationBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -440,7 +442,7 @@ class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRe
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(ItemInformationBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 # dref boxes
@@ -449,7 +451,7 @@ class DataEntryUrlBox(AbstractFullBox, DataEntryUrlBoxFieldsList, MixinDictRepr)
 
     def __init__(self, header):
         DataEntryUrlBoxFieldsList.__init__(self)
-        super(DataEntryUrlBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -466,7 +468,7 @@ class DataEntryUrnBox(AbstractFullBox, DataEntryUrnBoxFieldsList, MixinDictRepr)
 
     def __init__(self, header):
         DataEntryUrnBoxFieldsList.__init__(self)
-        super(DataEntryUrnBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -484,7 +486,7 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
 
     def __init__(self, header):
         ItemInfoEntryBoxFieldsList.__init__(self)
-        super(ItemInfoEntryBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -505,7 +507,7 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(ItemInfoEntryBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 # meta boxes
@@ -533,7 +535,7 @@ class ItemReferenceBox(ContainerBox, MixinDictRepr):
         full_box_header = FullBoxHeader()
         full_box_header.extend_header(bstr, header)
         del header
-        return super(ItemReferenceBox, cls).parse_box(bstr, full_box_header)
+        return super().parse_box(bstr, full_box_header)
 
 
 class ItemPropertiesBox(ContainerBox, MixinDictRepr):
@@ -549,7 +551,7 @@ class ItemLocationBox(AbstractFullBox, ItemLocationBoxFieldsList, MixinDictRepr)
 
     def __init__(self, header):
         ItemLocationBoxFieldsList.__init__(self)
-        super(ItemLocationBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return ItemLocationBoxFieldsList.__bytes__(self)
@@ -567,7 +569,7 @@ class SingleItemTypeReferenceBox(AbstractBox, SingleItemTypeReferenceBoxFieldsLi
 
     def __init__(self, header):
         SingleItemTypeReferenceBoxFieldsList.__init__(self)
-        super(SingleItemTypeReferenceBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -584,7 +586,7 @@ class SingleItemTypeReferenceBoxLarge(AbstractBox, SingleItemTypeReferenceBoxLar
 
     def __init__(self, header):
         SingleItemTypeReferenceBoxLargeFieldsList.__init__(self)
-        super(SingleItemTypeReferenceBoxLarge, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
@@ -606,7 +608,7 @@ class ItemPropertyAssociationBox(AbstractFullBox, ItemPropertyAssociationBoxFiel
 
     def __init__(self, header):
         ItemPropertyAssociationBoxFieldsList.__init__(self)
-        super(ItemPropertyAssociationBox, self).__init__(header)
+        super().__init__(header)
 
     def _get_content_bytes(self):
         return ItemPropertyAssociationBoxFieldsList.__bytes__(self)

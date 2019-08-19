@@ -3,12 +3,13 @@ from fieldslists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
 
 class BoxHeader(BoxHeaderFieldsList):
     def __init__(self, length=0):
+        super().__init__(length)
+
         self._start_pos = None
         self._type_cache = None
         self._box_size_cache = None
         self._header_size_cache = None
         self._content_size_cache = None
-        super(BoxHeader, self).__init__(length)
 
     @property
     def start_pos(self):
@@ -48,10 +49,10 @@ class BoxHeader(BoxHeaderFieldsList):
 
 class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList, BoxHeaderFieldsList):
     def __init__(self, length=0):
-        super(FullBoxHeader, self).__init__(length)
+        super().__init__(length)
 
     def parse_fields(self, bstr):
-        super(FullBoxHeader, self).parse_fields(bstr)
+        super().parse_fields(bstr)
         self._parse_extend_fields(bstr)
 
     def extend_header(self, bstr, header):
