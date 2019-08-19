@@ -86,12 +86,12 @@ class AbstractFieldsList:
 
 
 class BoxHeaderFieldsList(AbstractFieldsList):
-    def __init__(self, length=4):
+    def __init__(self, length=0):
         self._box_size = self.Field(value_type="uintbe", size=32)
         self._box_type = self.Field(value_type="bytes", size=4)
         self._box_ext_size = self.Field(value_type="uintbe", size=64)
         self._user_type = self.Field(value_type="bytes", size=16)
-        super(BoxHeaderFieldsList, self).__init__(length)
+        super(BoxHeaderFieldsList, self).__init__(length + 4)
 
     @property
     def box_size(self):
@@ -139,10 +139,10 @@ class BoxHeaderFieldsList(AbstractFieldsList):
 
 
 class FullBoxHeaderFieldsList(AbstractFieldsList):
-    def __init__(self, length=2):
+    def __init__(self, length=0):
         self._version = self.Field(value_type="uintbe", size=8)
         self._flags = self.Field(value_type="bits", size=24)
-        super(FullBoxHeaderFieldsList, self).__init__(length)
+        super(FullBoxHeaderFieldsList, self).__init__(length + 2)
 
     @property
     def version(self):
@@ -166,10 +166,10 @@ class FullBoxHeaderFieldsList(AbstractFieldsList):
 
 
 class DataBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._data = self.Field(value_type="bytes")
 
-        super(DataBoxFieldsList, self).__init__(8)
+        super(DataBoxFieldsList, self).__init__(length + 8)
 
     @property
     def data(self):
@@ -186,11 +186,11 @@ class DataBoxFieldsList(AbstractFieldsList):
 
 # Root boxes
 class FileTypeBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._major_brand = self.Field(value_type="uintbe", size=32)
         self._minor_version = self.Field(value_type="uintbe", size=32)
         self._compatible_brands = self.Field(value_type="uintbe", size=32, is_list=True)
-        super(FileTypeBoxFieldsList, self).__init__(3)
+        super(FileTypeBoxFieldsList, self).__init__(length + 3)
 
     @property
     def major_brand(self):
@@ -225,7 +225,7 @@ class FileTypeBoxFieldsList(AbstractFieldsList):
 
 # moov boxes
 class MovieHeaderBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._creation_time = self.Field(value_type="uintbe", size=32)
         self._modification_time = self.Field(value_type="uintbe", size=32)
         self._timescale = self.Field(value_type="uintbe", size=32)
@@ -245,7 +245,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
         self._next_track_id = self.Field(value_type="uintbe", size=32)
 
-        super(MovieHeaderBoxFieldsList, self).__init__(11)
+        super(MovieHeaderBoxFieldsList, self).__init__(length + 11)
 
     @property
     def creation_time(self):
@@ -348,7 +348,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
 # trak boxes
 class TrackHeaderBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._creation_time = self.Field(value_type="uintbe", size=32)
         self._modification_time = self.Field(value_type="uintbe", size=32)
         self._track_id = self.Field(value_type="uintbe", size=32)
@@ -373,7 +373,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
         self._height = self.Field(value_type="uintbe", size=16, is_list=True)
         self._height_length = 16 * 2
 
-        super(TrackHeaderBoxFieldsList, self).__init__(13)
+        super(TrackHeaderBoxFieldsList, self).__init__(length + 13)
 
     @property
     def creation_time(self):
@@ -489,7 +489,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
 # mdia boxes
 class MediaHeaderBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._creation_time = self.Field(value_type="uintbe", size=32)
         self._modification_time = self.Field(value_type="uintbe", size=32)
         self._timescale = self.Field(value_type="uintbe", size=32)
@@ -502,7 +502,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
         self._language_length = 5 * 3
         self._pre_defined = self.Field(value_type="uintbe", size=16)
 
-        super(MediaHeaderBoxFieldsList, self).__init__(7)
+        super(MediaHeaderBoxFieldsList, self).__init__(length + 7)
 
     @property
     def creation_time(self):
@@ -572,7 +572,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
 
 class HandlerReferenceBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._pre_defined = self.Field(value_type="uintbe", size=32)
         self._handler_type = self.Field(value_type="bytes", size=4)
 
@@ -581,7 +581,7 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
 
         self._name = self.Field(value_type="bytes", is_string=True)
 
-        super(HandlerReferenceBoxFieldsList, self).__init__(4)
+        super(HandlerReferenceBoxFieldsList, self).__init__(length + 4)
 
     @property
     def pre_defined(self):
@@ -621,12 +621,12 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
 
 # minf boxes
 class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._graphicsmode = self.Field(value_type="uintbe", size=16)
         self._opcolor = self.Field(value_type="uintbe", size=16, is_list=True)
         self._opcolor_length = 16 * 3
 
-        super(VideoMediaHeaderBoxFieldsList, self).__init__(2)
+        super(VideoMediaHeaderBoxFieldsList, self).__init__(length + 2)
 
     @property
     def graphicsmode(self):
@@ -653,10 +653,10 @@ class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
 
 # stbl boxes
 class SampleDescriptionBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._entry_count = self.Field(value_type="uintbe", size=32)
 
-        super(SampleDescriptionBoxFieldsList, self).__init__(1)
+        super(SampleDescriptionBoxFieldsList, self).__init__(length + 1)
 
     @property
     def entry_count(self):
@@ -673,10 +673,10 @@ class SampleDescriptionBoxFieldsList(AbstractFieldsList):
 
 # dinf boxes
 class DataReferenceBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._entry_count = self.Field(value_type="uintbe", size=32)
 
-        super(DataReferenceBoxFieldsList, self).__init__(1)
+        super(DataReferenceBoxFieldsList, self).__init__(length + 1)
 
     @property
     def entry_count(self):
@@ -692,10 +692,10 @@ class DataReferenceBoxFieldsList(AbstractFieldsList):
 
 
 class PrimaryItemBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._item_id = self.Field(value_type="uintbe", size=16)
 
-        super(PrimaryItemBoxFieldsList, self).__init__(1)
+        super(PrimaryItemBoxFieldsList, self).__init__(length + 1)
 
     @property
     def item_id(self):
@@ -713,10 +713,10 @@ class PrimaryItemBoxFieldsList(AbstractFieldsList):
 
 
 class ItemInformationBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._entry_count = self.Field(value_type="uintbe", size=16)
 
-        super(ItemInformationBoxFieldsList, self).__init__(1)
+        super(ItemInformationBoxFieldsList, self).__init__(length + 1)
 
     @property
     def entry_count(self):
@@ -735,10 +735,10 @@ class ItemInformationBoxFieldsList(AbstractFieldsList):
 
 # dref boxes
 class DataEntryUrlBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._location = self.Field(value_type="bytes", is_string=True)
 
-        super(DataEntryUrlBoxFieldsList, self).__init__(1)
+        super(DataEntryUrlBoxFieldsList, self).__init__(length + 1)
 
     @property
     def location(self):
@@ -756,11 +756,11 @@ class DataEntryUrlBoxFieldsList(AbstractFieldsList):
 
 
 class DataEntryUrnBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._name = self.Field(value_type="bytes", is_string=True)
         self._location = self.Field(value_type="bytes", is_string=True)
 
-        super(DataEntryUrnBoxFieldsList, self).__init__(1)
+        super(DataEntryUrnBoxFieldsList, self).__init__(length + 1)
 
     @property
     def location(self):
@@ -789,7 +789,7 @@ class DataEntryUrnBoxFieldsList(AbstractFieldsList):
 
 # iinf boxes
 class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._item_id = self.Field(value_type="uintbe", size=16)
         self._item_protection_index = self.Field(value_type="uintbe", size=16)
         self._item_type = self.Field(value_type="uintbe", size=32)
@@ -800,7 +800,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
         self._extension_type = self.Field(value_type="uintbe", size=32)
 
-        super(ItemInfoEntryBoxFieldsList, self).__init__(8)
+        super(ItemInfoEntryBoxFieldsList, self).__init__(length + 8)
 
     @property
     def item_id(self):
@@ -910,7 +910,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
 # meta boxes
 class ItemLocationBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._offset_size = self.Field(value_type="uint", size=4)
         self._length_size = self.Field(value_type="uint", size=4)
         self._base_offset_size = self.Field(value_type="uint", size=4)
@@ -920,7 +920,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
         self._item_count = self.Field(value_type="uintbe", size=16)
         self._items = []
 
-        super(ItemLocationBoxFieldsList, self).__init__(6)
+        super(ItemLocationBoxFieldsList, self).__init__(length + 6)
 
     def __bytes__(self):
         box_bytes = super(ItemLocationBoxFieldsList, self).__bytes__()
@@ -1009,7 +1009,9 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
         self._extents = []
 
-        super(ItemLocationBoxItemFieldsList, self).__init__(6)
+        # TODO: do mention that ItemLocationBoxItemFieldsList does not make
+        #  use of super()
+        AbstractFieldsList.__init__(self, 6)
 
     def __bytes__(self):
         box_bytes = super(ItemLocationBoxItemFieldsList, self).__bytes__()
@@ -1089,7 +1091,9 @@ class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
         self._extent_offset = self.Field(value_type="uintbe", size=offset_size * 8)
         self._extent_length = self.Field(value_type="uintbe", size=length_size * 8)
 
-        super(ItemLocationBoxItemExtentFieldsList, self).__init__(3)
+        # TODO: do mention that ItemLocationBoxItemExtentFieldsList does not
+        #  make use of super()
+        AbstractFieldsList.__init__(self, 3)
 
     @property
     def extent_index(self):
@@ -1128,12 +1132,12 @@ class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
 
 # iref boxes
 class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._from_item_id = self.Field(value_type="uintbe", size=16)
         self._reference_count = self.Field(value_type="uintbe", size=16)
         self._to_item_ids = self.Field(value_type="uintbe", size=16, is_list=True)
 
-        super(SingleItemTypeReferenceBoxFieldsList, self).__init__(3)
+        super(SingleItemTypeReferenceBoxFieldsList, self).__init__(length + 3)
 
     @property
     def from_item_id(self):
@@ -1168,12 +1172,12 @@ class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
 
 
 class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._from_item_id = self.Field(value_type="uintbe", size=32)
         self._reference_count = self.Field(value_type="uintbe", size=16)
         self._to_item_ids = self.Field(value_type="uintbe", size=32, is_list=True)
 
-        super(SingleItemTypeReferenceBoxLargeFieldsList, self).__init__(3)
+        super(SingleItemTypeReferenceBoxLargeFieldsList, self).__init__(length + 3)
 
     @property
     def from_item_id(self):
@@ -1209,11 +1213,11 @@ class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
 
 # iprp boxes
 class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._entry_count = self.Field(value_type="uintbe", size=32)
         self._entries = []
 
-        super(ItemPropertyAssociationBoxFieldsList, self).__init__(1)
+        super(ItemPropertyAssociationBoxFieldsList, self).__init__(length + 1)
 
     def __bytes__(self):
         box_bytes = super(ItemPropertyAssociationBoxFieldsList, self).__bytes__()
@@ -1241,12 +1245,12 @@ class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
 
 
 class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._item_id = self.Field(value_type="uintbe", size=16)
         self._association_count = self.Field(value_type="uintbe", size=8)
         self._associations = []
 
-        super(ItemPropertyAssociationBoxEntryFieldsList, self).__init__(2)
+        super(ItemPropertyAssociationBoxEntryFieldsList, self).__init__(length + 2)
 
     def __bytes__(self):
         box_bytes = super(ItemPropertyAssociationBoxEntryFieldsList, self).__bytes__()
@@ -1286,13 +1290,13 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
 
 
 class ItemPropertyAssociationBoxEntryassociationsFieldsList(AbstractFieldsList):
-    def __init__(self):
+    def __init__(self, length=0):
         self._essential = self.Field(value_type="bits", size=1)
         self._property_index_8b = self.Field(value_type="uint", size=8)
         self._property_index_7b = self.Field(value_type="uint", size=7)
         self._property_index_cache = None
 
-        super(ItemPropertyAssociationBoxEntryassociationsFieldsList, self).__init__(3)
+        super(ItemPropertyAssociationBoxEntryassociationsFieldsList, self).__init__(length + 3)
 
     @property
     def essential(self):
