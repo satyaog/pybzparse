@@ -67,7 +67,7 @@ class AbstractFieldsList:
             if field.index is None:
                 self._register_field(field)
             else:
-                self._end_index = field.index + 1
+                self._end_index = max(self._end_index, field.index + 1)
             if field.value is None:
                 self._fields[field.index] = field
             field.value = value
@@ -95,6 +95,7 @@ class AbstractFieldsList:
         return field
 
     def _drop_field(self, field):
+        field.value = None
         self._fields[field.index] = None
 
     @property
@@ -174,15 +175,18 @@ class FullBoxHeaderFieldsList(AbstractFieldsList):
 
     @property
     def flags(self):
-        return self._flags.value.bytes
+        return self._flags.value
 
     @flags.setter
     def flags(self, value):
+        if isinstance(value, bs.BitStream):
+            value = value.bytes
         self._set_field(self._flags, *value)
 
     def parse_fields(self, bstr):
         self._read_field(bstr, self._version)
         self._read_field(bstr, self._flags)
+        self._flags.value = self._flags.value.bytes
 
 
 class DataBoxFieldsList(AbstractFieldsList):

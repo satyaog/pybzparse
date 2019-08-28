@@ -61,6 +61,28 @@ class BoxHeader(BoxHeaderFieldsList):
         self.parse_fields(bstr)
         self._refresh_cache(bstr.bytepos - self._start_pos)
 
+    def update_box_size(self, content_size):
+        header_size = len(bytes(self))
+        # Add the size of the box_size field
+        if self._box_size.value is None:
+            header_size += 4
+        # Add the size of the box_ext_size field
+        if self._box_ext_size.value is None and \
+           header_size + content_size > MAX_UINT_32:
+            header_size += 8
+
+        box_size = header_size + content_size
+
+        if self._box_ext_size.value is not None or box_size > MAX_UINT_32:
+            self._set_field(self._box_ext_size, box_size)
+        else:
+            self._set_field(self._box_size, box_size)
+
+        self._refresh_cache(header_size)
+
+    def refresh_cache(self):
+        self._refresh_cache(len(bytes(self)))
+
     def _refresh_cache(self, header_size):
         self._type_cache = (self._box_type.value + self._user_type.value
                             if self._user_type.value is not None
@@ -69,7 +91,9 @@ class BoxHeader(BoxHeaderFieldsList):
                                 if self._box_ext_size.value is not None
                                 else self._box_size.value)
         self._header_size_cache = header_size
-        self._content_size_cache = self._box_size_cache - header_size
+        self._content_size_cache = (self._box_size_cache - header_size
+                                    if self._box_size_cache is not None
+                                    else None)
 
 
 class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList, BoxHeaderFieldsList):

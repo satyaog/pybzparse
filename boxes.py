@@ -64,10 +64,11 @@ class AbstractBox(metaclass=ABCMeta):
 
     def refresh_box_size(self):
         # TODO: this could be optimized if needed
-        box_size = len(b''.join([bytes(self._header), self._get_content_bytes(),
-                                 self.padding]))
+        content_size = len(self._get_content_bytes())
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + content_size + padding_size
         if self._header.box_size != box_size:
-            self._header.box_size = box_size
+            self._header.update_box_size(content_size + padding_size)
 
     @abstractmethod
     def _get_content_bytes(self):
