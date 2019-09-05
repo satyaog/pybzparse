@@ -138,12 +138,13 @@ class ContainerBox(AbstractBox, MixinDictRepr):
 
     def refresh_box_size(self):
         self.refresh_boxes_size()
-        box_size = 0
+        boxes_size = 0
         for box in self._boxes:
-            box_size += box.header.box_size
-        box_size += len(b''.join([bytes(self._header), self.padding]))
+            boxes_size += box.header.box_size
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + boxes_size + padding_size
         if self._header.box_size != box_size:
-            self._header.box_size = box_size
+            self._header.update_box_size(boxes_size + padding_size)
 
     def refresh_boxes_size(self):
         for box in self._boxes:
@@ -391,10 +392,16 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
         for i in range(self._entry_count.value):
             self._boxes.append(next(box_iterator))
 
-    def refresh_boxes_size(self):
+    def refresh_box_size(self):
+        self.refresh_boxes_size()
         boxes_size = 0
         for box in self._boxes:
-            boxes_size += box.refresh_box_size()
+            boxes_size += box.header.box_size
+        fields_size = len(AbstractFieldsList.__bytes__(self))
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + fields_size + boxes_size + padding_size
+        if self._header.box_size != box_size:
+            self._header.update_box_size(fields_size + boxes_size + padding_size)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -438,6 +445,17 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
         box_iterator = Parser.parse(bstr, recursive=recursive)
         for i in range(self._entry_count.value):
             self._boxes.append(next(box_iterator))
+
+    def refresh_box_size(self):
+        self.refresh_boxes_size()
+        boxes_size = 0
+        for box in self._boxes:
+            boxes_size += box.header.box_size
+        fields_size = len(AbstractFieldsList.__bytes__(self))
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + fields_size + boxes_size + padding_size
+        if self._header.box_size != box_size:
+            self._header.update_box_size(fields_size + boxes_size + padding_size)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -497,6 +515,17 @@ class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRe
         box_iterator = Parser.parse(bstr, recursive=recursive)
         for i in range(self._entry_count.value):
             self._boxes.append(next(box_iterator))
+
+    def refresh_box_size(self):
+        self.refresh_boxes_size()
+        boxes_size = 0
+        for box in self._boxes:
+            boxes_size += box.header.box_size
+        fields_size = len(AbstractFieldsList.__bytes__(self))
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + fields_size + boxes_size + padding_size
+        if self._header.box_size != box_size:
+            self._header.update_box_size(fields_size + boxes_size + padding_size)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
@@ -562,6 +591,17 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
         if self._extension_type.value:
             bstr.bytepos = self._boxes_start_pos
             self._boxes.append(next(Parser.parse(bstr, recursive=recursive)))
+
+    def refresh_box_size(self):
+        self.refresh_boxes_size()
+        boxes_size = 0
+        for box in self._boxes:
+            boxes_size += box.header.box_size
+        fields_size = len(AbstractFieldsList.__bytes__(self))
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + fields_size + boxes_size + padding_size
+        if self._header.box_size != box_size:
+            self._header.update_box_size(fields_size + boxes_size + padding_size)
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self) + \
