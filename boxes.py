@@ -4,7 +4,14 @@ from headers import FullBoxHeader
 from pybzparse import Parser
 
 from fields_lists import *
-from sub_fields_lists import ItemLocationSubFieldsList, ItemPropertyAssociationSubFieldsList
+from sub_fields_lists import EditListSubFieldsList, \
+    TimeToSampleSubFieldsList, \
+    CompositionOffsetSubFieldsList, \
+    SampleSizeSubFieldsList, \
+    SampleToChunkSubFieldsList, \
+    ChunkOffsetSubFieldsList, \
+    ItemLocationSubFieldsList, \
+    ItemPropertyAssociationSubFieldsList
 
 
 class MixinDictRepr(object):
@@ -226,6 +233,8 @@ class MediaDataBox(DataBox):
 
 
 class MovieBox(ContainerBox, MixinDictRepr):
+    # TODO: auto-increment the next_track_id of mvhd when a track is appended
+
     type = b"moov"
 
 
@@ -242,11 +251,16 @@ class MetaBox(ContainerBox, MixinDictRepr):
 
 # moov boxes
 class MovieHeaderBox(AbstractFullBox, MovieHeaderBoxFieldsList, MixinDictRepr):
+    # TODO: auto-increment next_track_id when a track is appended to the moov
+
     type = b"mvhd"
 
     def __init__(self, header):
         MovieHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
+
+        self._set_field(self._reserved0, b'\0' * 2)
+        self._set_field(self._reserved1, [b'\0' * 4] * 2)
 
     def load(self, bstr):
         pass
@@ -270,13 +284,25 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
         TrackHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
 
+        self._set_field(self._reserved0, b'\0' * 4)
+        self._set_field(self._reserved1, [b'\0' * 4] * 2)
+        self._set_field(self._reserved2, b'\0' * 2)
+
     @property
     def width(self):
         return self._width.value[0]
 
+    @width.setter
+    def width(self, value):
+        self._set_field(self._width, *value)
+
     @property
     def height(self):
         return self._height.value[0]
+
+    @height.setter
+    def height(self, value):
+        self._set_field(self._height, *value)
 
     @property
     def is_audio(self):
@@ -296,6 +322,10 @@ class MediaBox(ContainerBox, MixinDictRepr):
     type = b"mdia"
 
 
+class EditBox(ContainerBox, MixinDictRepr):
+    type = b"edts"
+
+
 # mdia boxes
 class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
     type = b"mdhd"
@@ -303,6 +333,8 @@ class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
     def __init__(self, header):
         MediaHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
+
+        self._set_field(self._pad0, 0x1)
 
     def load(self, bstr):
         pass
@@ -321,6 +353,8 @@ class HandlerReferenceBox(AbstractFullBox, HandlerReferenceBoxFieldsList, MixinD
         HandlerReferenceBoxFieldsList.__init__(self)
         super().__init__(header)
 
+        self._set_field(self._reserved0, [b'\0' * 4] * 3)
+
     def load(self, bstr):
         pass
 
@@ -337,6 +371,32 @@ class MediaInformationBox(ContainerBox, MixinDictRepr):
 
 class SampleTableBox(ContainerBox, MixinDictRepr):
     type = b"stbl"
+
+
+# edts boxes
+class EditListBox(AbstractFullBox, EditListSubFieldsList, MixinDictRepr):
+    type = b"elst"
+
+    def __init__(self, header):
+        EditListSubFieldsList.__init__(self)
+        super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return EditListSubFieldsList.__bytes__(self)
 
 
 # minf boxes
@@ -357,6 +417,19 @@ class VideoMediaHeaderBox(AbstractFullBox, VideoMediaHeaderBoxFieldsList, MixinD
         return AbstractFieldsList.__bytes__(self)
 
 
+class NullMediaHeaderBox(AbstractFullBox, MixinDictRepr):
+    type = b"nmhd"
+
+    def load(self, bstr):
+        pass
+
+    def parse_impl(self, bstr):
+        pass
+
+    def _get_content_bytes(self):
+        return b''
+
+
 class DataInformationBox(ContainerBox, MixinDictRepr):
     type = b"dinf"
 
@@ -368,6 +441,8 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
     def __init__(self, header):
         SampleDescriptionBoxFieldsList.__init__(self)
         super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
 
     def append(self, box):
         super().append(box)
@@ -415,6 +490,134 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
         return super().parse_box(bstr, full_box_header)
 
 
+class TimeToSampleBox(AbstractFullBox, TimeToSampleSubFieldsList,
+                      MixinDictRepr):
+    type = b"stts"
+
+    def __init__(self, header):
+        TimeToSampleSubFieldsList.__init__(self)
+        super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return TimeToSampleSubFieldsList.__bytes__(self)
+
+
+class CompositionOffsetBox(AbstractFullBox, CompositionOffsetSubFieldsList,
+                           MixinDictRepr):
+    type = b"ctts"
+
+    def __init__(self, header):
+        CompositionOffsetSubFieldsList.__init__(self)
+        super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return CompositionOffsetSubFieldsList.__bytes__(self)
+
+
+class SampleSizeBox(AbstractFullBox, SampleSizeSubFieldsList, MixinDictRepr):
+    type = b"stsz"
+
+    def __init__(self, header):
+        SampleSizeSubFieldsList.__init__(self)
+        super().__init__(header)
+
+        self._set_field(self._sample_count, 0)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return SampleSizeSubFieldsList.__bytes__(self)
+
+
+class SampleToChunkBox(AbstractFullBox, SampleToChunkSubFieldsList,
+                       MixinDictRepr):
+    type = b"stsc"
+
+    def __init__(self, header):
+        SampleToChunkSubFieldsList.__init__(self)
+        super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return SampleToChunkSubFieldsList.__bytes__(self)
+
+
+class ChunkOffsetBox(AbstractFullBox, ChunkOffsetSubFieldsList, MixinDictRepr):
+    type = b"stco"
+
+    def __init__(self, header):
+        ChunkOffsetSubFieldsList.__init__(self)
+        super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return ChunkOffsetSubFieldsList.__bytes__(self)
+
+
 # dinf boxes
 class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     type = b"dref"
@@ -422,6 +625,8 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     def __init__(self, header):
         DataReferenceBoxFieldsList.__init__(self)
         super().__init__(header)
+
+        self._set_field(self._entry_count, 0)
 
     def append(self, box):
         super().append(box)
@@ -753,6 +958,7 @@ TRAK = TrackBox
 # trak boxes
 TKHD = TrackHeaderBox
 MDIA = MediaBox
+EDTS = EditBox
 
 # mdia boxes
 MDHD = MediaHeaderBox
@@ -760,12 +966,21 @@ HDLR = HandlerReferenceBox
 MINF = MediaInformationBox
 STBL = SampleTableBox
 
+# edts boxes
+ELST = EditListBox
+
 # minf boxes
 VMHD = VideoMediaHeaderBox
+NMHD = NullMediaHeaderBox
 DINF = DataInformationBox
 
 # stbl boxes
 STSD = SampleDescriptionBox
+STTS = TimeToSampleBox
+CTTS = CompositionOffsetBox
+STSZ = SampleSizeBox
+STSC = SampleToChunkBox
+STCO = ChunkOffsetBox
 
 # dinf boxes
 DREF = DataReferenceBox
@@ -807,6 +1022,7 @@ Parser.register_box(TRAK)
 # trak boxes
 Parser.register_box(TKHD)
 Parser.register_box(MDIA)
+Parser.register_box(EDTS)
 
 # mdia boxes
 Parser.register_box(MDHD)
@@ -814,12 +1030,21 @@ Parser.register_box(HDLR)
 Parser.register_box(MINF)
 Parser.register_box(STBL)
 
+# edts boxes
+Parser.register_box(ELST)
+
 # minf boxes
 Parser.register_box(VMHD)
+Parser.register_box(NMHD)
 Parser.register_box(DINF)
 
 # stbl boxes
 Parser.register_box(STSD)
+Parser.register_box(STTS)
+Parser.register_box(CTTS)
+Parser.register_box(STSZ)
+Parser.register_box(STSC)
+Parser.register_box(STCO)
 
 # dinf boxes
 Parser.register_box(DREF)

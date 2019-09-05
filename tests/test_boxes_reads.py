@@ -112,7 +112,7 @@ def test_full_box_header():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               100, b"abcd", 1, b"\x00\x00\x07")
     box_header = Parser.parse_header(bs)
-    full_box_header = bx_def.FullBoxHeader()
+    full_box_header = headers.FullBoxHeader()
     full_box_header.extend_header(bs, box_header)
     del box_header
 
@@ -148,16 +148,18 @@ def test_ftyp_box():
     assert bytes(box) == bs.bytes
 
 
-def test_mvhd_header_box():
+def test_mvhd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
               "uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
-              "uintbe:32, uintbe:16, bits:16, bits:32, bits:32, "
+              "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+              "bits:16, bits:32, bits:32, "
               "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
               "bits:32, bits:32, bits:32, bits:32, bits:32, bits:32, "
               "uintbe:32",
               108, b"mvhd", 0, b"\x00\x00\x00",
               3596199850, 3596199850, 48000, 6720608,
-              65536, 256, b"\x00" * 2, b"\x00" * 4, b"\x00" * 4,
+              1, 0, 1, 0,
+              b"\x00" * 2, b"\x00" * 4, b"\x00" * 4,
               65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
               b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4,
               3)
@@ -177,8 +179,8 @@ def test_mvhd_header_box():
     assert box.timescale == 48000
     assert box.duration == 6720608
 
-    assert box.rate == 65536
-    assert box.volume == 256
+    assert box.rate == [1, 0]
+    assert box.volume == [1, 0]
 
     assert box.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
     assert box.pre_defined == [b"\x00" * 4] * 6
@@ -188,15 +190,19 @@ def test_mvhd_header_box():
     assert bytes(box) == bs.bytes
 
 
-def test_tkhd_header_box():
+def test_tkhd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
               "uintbe:32, uintbe:32, uintbe:32, bits:32, uintbe:32, "
-              "bits:32, bits:32, uintbe:16, uintbe:16, uintbe:16, bits:16, "
+              "bits:32, bits:32, "
+              "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+              "bits:16, "
               "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
               "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
               92, b"tkhd", 0, b"\x00\x00\x07",
               3596199850, 3596199850, 1, b"\x00" * 4, 6720313,
-              b"\x00" * 4, b"\x00" * 4, 0, 0, 0, b"\x00" * 2,
+              b"\x00" * 4, b"\x00" * 4,
+              0, 0, 0, 0,
+              b"\x00" * 2,
               65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
               318, 0, 180, 0)
 
@@ -217,7 +223,7 @@ def test_tkhd_header_box():
 
     assert box.layer == 0
     assert box.alternate_group == 0
-    assert box.volume == 0
+    assert box.volume == [0, 0]
 
     assert box.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
 
@@ -229,13 +235,15 @@ def test_tkhd_header_box():
     assert bytes(box) == bs.bytes
 
 
-def test_mdhd_header_box():
+def test_mdhd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
               "uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
-              "bits:1, uint:5, uint:5, uint:5, bits:16",
+              "bits:1, uint:5, uint:5, uint:5, "
+              "bits:16",
               32, b"mdhd", 0, b"\x00\x00\x00",
               3596199850, 3596199850, 30000, 4200196,
-              0x1, 21, 14, 4, b"\x00" * 2)
+              0x1, 21, 14, 4,
+              b"\x00" * 2)
 
     box_header = Parser.parse_header(bs)
     mdhd = bx_def.MDHD.parse_box(bs, box_header)
@@ -281,7 +289,36 @@ def test_hdlr_box():
     assert bytes(box) == bs.bytes
 
 
-def test_vmhd_header_box():
+def test_elst_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:32, uintbe:32, uintbe:16, uintbe:16",
+              28, b"elst", 0, b"\x00\x00\x00",
+              1, 3000, 0, 1, 0)
+
+    box_header = Parser.parse_header(bs)
+    elst = bx_def.ELST.parse_box(bs, box_header)
+    box = elst
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"elst"
+    assert box.header.box_size == 28
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
+    assert len(box.entries) == 0
+
+    box.load(bs)
+    assert len(box.entries) == 1
+    assert box.entries[0].segment_duration == 3000
+    assert box.entries[0].media_time == 0
+    assert box.entries[0].media_rate_integer == 1
+    assert box.entries[0].media_rate_fraction == 0
+
+    assert bytes(box) == bs.bytes
+
+
+def test_vmhd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
               "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
               20, b"vmhd", 0, b"\x00\x00\x01",
@@ -299,5 +336,214 @@ def test_vmhd_header_box():
 
     assert box.graphicsmode == 0
     assert box.opcolor == [0, 0, 0]
+
+    assert bytes(box) == bs.bytes
+
+
+def test_nmhd_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
+              12, b"nmhd", 0, b"\x00\x00\x00")
+
+    box_header = Parser.parse_header(bs)
+    nmhd = bx_def.NMHD.parse_box(bs, box_header)
+    box = nmhd
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"nmhd"
+    assert box.header.box_size == 12
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert bytes(box) == bs.bytes
+
+
+def test_dref_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
+              16, b"dref", 0, b"\x00\x00\x00", 1)
+
+    box_header = Parser.parse_header(bs)
+    dref = bx_def.DREF.parse_box(bs, box_header)
+    box = dref
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"dref"
+    assert box.header.box_size == 16
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
+
+    assert bytes(box) == bs.bytes
+
+
+def test_url__box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
+              12, b"url ", 0, b"\x00\x00\x01")
+
+    box_header = Parser.parse_header(bs)
+    url_ = bx_def.URL_.parse_box(bs, box_header)
+    box = url_
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"url "
+    assert box.header.box_size == 12
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x01"
+
+    assert box.location is None
+
+    assert bytes(box) == bs.bytes
+
+
+def test_stsd_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
+              16, b"stsd", 0, b"\x00\x00\x00", 0)
+
+    box_header = Parser.parse_header(bs)
+    stsd = bx_def.STSD.parse_box(bs, box_header)
+    box = stsd
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"stsd"
+    assert box.header.box_size == 16
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 0
+
+    assert bytes(box) == bs.bytes
+
+
+def test_stts_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:32, uintbe:32",
+              24, b"stts", 0, b"\x00\x00\x00",
+              1, 1, 1)
+
+    box_header = Parser.parse_header(bs)
+    stts = bx_def.STTS.parse_box(bs, box_header)
+    box = stts
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"stts"
+    assert box.header.box_size == 24
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
+    assert len(box.entries) == 0
+
+    box.load(bs)
+    assert len(box.entries) == 1
+    assert box.entries[0].sample_count == 1
+    assert box.entries[0].sample_delta == 1
+
+    assert bytes(box) == bs.bytes
+
+
+def test_ctts_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:32, uintbe:32",
+              24, b"ctts", 0, b"\x00\x00\x00",
+              1, 1, 1)
+
+    box_header = Parser.parse_header(bs)
+    ctts = bx_def.CTTS.parse_box(bs, box_header)
+    box = ctts
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"ctts"
+    assert box.header.box_size == 24
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
+    assert len(box.entries) == 0
+
+    box.load(bs)
+    assert len(box.entries) == 1
+    assert box.entries[0].sample_count == 1
+    assert box.entries[0].sample_offset == 1
+
+    assert bytes(box) == bs.bytes
+
+
+def test_stsz_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:32, uintbe:32",
+              24, b"stsz", 0, b"\x00\x00\x00",
+              0, 1, 1)
+
+    box_header = Parser.parse_header(bs)
+    stsz = bx_def.STSZ.parse_box(bs, box_header)
+    box = stsz
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"stsz"
+    assert box.header.box_size == 24
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.sample_size == 0
+    assert box.sample_count == 1
+    assert len(box.samples) == 0
+
+    box.load(bs)
+    assert len(box.samples) == 1
+    assert box.samples[0].entry_size == 1
+
+    assert bytes(box) == bs.bytes
+
+
+def test_stsc_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:32, uintbe:32, uintbe:32",
+              28, b"stsc", 0, b"\x00\x00\x00",
+              1, 1, 1, 1)
+
+    box_header = Parser.parse_header(bs)
+    stsc = bx_def.STSC.parse_box(bs, box_header)
+    box = stsc
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"stsc"
+    assert box.header.box_size == 28
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
+    assert len(box.entries) == 0
+
+    box.load(bs)
+    assert len(box.entries) == 1
+    assert box.entries[0].first_chunk == 1
+    assert box.entries[0].samples_per_chunk == 1
+    assert box.entries[0].sample_description_index == 1
+
+    assert bytes(box) == bs.bytes
+
+
+def test_stco_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:32",
+              20, b"stco", 0, b"\x00\x00\x00",
+              1, 1)
+
+    box_header = Parser.parse_header(bs)
+    stco = bx_def.STCO.parse_box(bs, box_header)
+    box = stco
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"stco"
+    assert box.header.box_size == 20
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
+    assert len(box.entries) == 0
+
+    box.load(bs)
+    assert len(box.entries) == 1
+    assert box.entries[0].chunk_offset == 1
 
     assert bytes(box) == bs.bytes

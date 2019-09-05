@@ -265,10 +265,14 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
         self._duration = \
             self._register_field(Field(value_type="uintbe", size=64))
 
+        # TODO: create a 16.16 float representation
         self._rate = \
-            self._register_field(Field(value_type="uintbe", size=32))
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
+        self._rate_length = 16 * 2
+        # TODO: create a 8.8 float representation
         self._volume = \
-            self._register_field(Field(value_type="uintbe", size=16))
+            self._register_field(Field(value_type="uintbe", size=8, is_list=True))
+        self._volume_length = 8 * 2
 
         self._reserved0 = \
             self._register_field(Field(value_type="bits", size=16))
@@ -370,8 +374,10 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._timescale)
         self._read_field(bstr, self._duration)
 
-        self._read_field(bstr, self._rate)
-        self._read_field(bstr, self._volume)
+        self._read_field(bstr, self._rate,
+                         until_pos=bstr.bitpos + self._rate_length)
+        self._read_field(bstr, self._volume,
+                         until_pos=bstr.bitpos + self._volume_length)
 
         self._read_field(bstr, self._reserved0)
         self._read_field(bstr, self._reserved1,
@@ -409,8 +415,10 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
             self._register_field(Field(value_type="uintbe", size=16))
         self._alternate_group = \
             self._register_field(Field(value_type="uintbe", size=16))
+        # TODO: create a 8.8 float representation
         self._volume = \
-            self._register_field(Field(value_type="uintbe", size=16))
+            self._register_field(Field(value_type="uintbe", size=8, is_list=True))
+        self._volume_length = 8 * 2
 
         self._reserved2 = \
             self._register_field(Field(value_type="bits", size=16))
@@ -526,7 +534,8 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
         self._read_field(bstr, self._layer)
         self._read_field(bstr, self._alternate_group)
-        self._read_field(bstr, self._volume)
+        self._read_field(bstr, self._volume,
+                         until_pos=bstr.bitpos + self._volume_length)
 
         self._read_field(bstr, self._reserved2)
 
@@ -682,6 +691,82 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._name)
 
 
+# edts boxes
+class EditListBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_count)
+
+
+class EditListBoxEntryFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 4)
+
+        self._segment_duration = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._media_time = \
+            self._register_field(Field(value_type="uintbe", size=64))
+        self._media_rate_integer = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._media_rate_fraction = \
+            self._register_field(Field(value_type="uintbe", size=16))
+
+    @property
+    def segment_duration(self):
+        return self._segment_duration.value
+
+    @segment_duration.setter
+    def segment_duration(self, value):
+        self._set_field(self._segment_duration, *value)
+
+    @property
+    def media_time(self):
+        return self._media_time.value
+
+    @media_time.setter
+    def media_time(self, value):
+        self._set_field(self._media_time, *value)
+
+    @property
+    def media_rate_integer(self):
+        return self._media_rate_integer.value
+
+    @media_rate_integer.setter
+    def media_rate_integer(self, value):
+        self._set_field(self._media_rate_integer, *value)
+
+    @property
+    def media_rate_fraction(self):
+        return self._media_rate_fraction.value
+
+    @media_rate_fraction.setter
+    def media_rate_fraction(self, value):
+        self._set_field(self._media_rate_fraction, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version == 0:
+            self._segment_duration.type = "uintbe:32"
+            self._media_time.type = "uintbe:32"
+
+        self._read_field(bstr, self._segment_duration)
+        self._read_field(bstr, self._media_time)
+        self._read_field(bstr, self._media_rate_integer)
+        self._read_field(bstr, self._media_rate_fraction)
+
+
 # minf boxes
 class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
@@ -734,6 +819,257 @@ class SampleDescriptionBoxFieldsList(AbstractFieldsList):
     def parse_fields(self, bstr, header):
         del header
         self._read_field(bstr, self._entry_count)
+
+
+class TimeToSampleBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_count)
+
+
+class TimeToSampleBoxEntryFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._sample_count = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._sample_delta = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def sample_count(self):
+        return self._sample_count.value
+
+    @sample_count.setter
+    def sample_count(self, value):
+        self._set_field(self._sample_count, *value)
+
+    @property
+    def sample_delta(self):
+        return self._sample_delta.value
+
+    @sample_delta.setter
+    def sample_delta(self, value):
+        self._set_field(self._sample_delta, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._sample_count)
+        self._read_field(bstr, self._sample_delta)
+
+
+class CompositionOffsetBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_count)
+
+
+class CompositionOffsetBoxEntryFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._sample_count = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._sample_offset = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def sample_count(self):
+        return self._sample_count.value
+
+    @sample_count.setter
+    def sample_count(self, value):
+        self._set_field(self._sample_count, *value)
+
+    @property
+    def sample_offset(self):
+        return self._sample_offset.value
+
+    @sample_offset.setter
+    def sample_offset(self, value):
+        self._set_field(self._sample_offset, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version == 1:
+            self._sample_offset.type = "intbe:32"
+
+        self._read_field(bstr, self._sample_count)
+        self._read_field(bstr, self._sample_offset)
+
+
+class SampleSizeBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._sample_size = self._register_field(Field(value_type="uintbe", size=32))
+        self._sample_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def sample_size(self):
+        return self._sample_size.value
+
+    @sample_size.setter
+    def sample_size(self, value):
+        self._set_field(self._sample_size, *value)
+
+    @property
+    def sample_count(self):
+        return self._sample_count.value
+
+    @sample_count.setter
+    def sample_count(self, value):
+        self._set_field(self._sample_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._sample_size)
+        self._read_field(bstr, self._sample_count)
+
+
+class SampleSizeBoxSampleFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_size = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_size(self):
+        return self._entry_size.value
+
+    @entry_size.setter
+    def entry_size(self, value):
+        self._set_field(self._entry_size, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_size)
+
+
+class SampleToChunkBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_count)
+
+
+class SampleToChunkBoxEntryFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 3)
+
+        self._first_chunk = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._samples_per_chunk = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._sample_description_index = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def first_chunk(self):
+        return self._first_chunk.value
+
+    @first_chunk.setter
+    def first_chunk(self, value):
+        self._set_field(self._first_chunk, *value)
+
+    @property
+    def samples_per_chunk(self):
+        return self._samples_per_chunk.value
+
+    @samples_per_chunk.setter
+    def samples_per_chunk(self, value):
+        self._set_field(self._samples_per_chunk, *value)
+
+    @property
+    def sample_description_index(self):
+        return self._sample_description_index.value
+
+    @sample_description_index.setter
+    def sample_description_index(self, value):
+        self._set_field(self._sample_description_index, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._first_chunk)
+        self._read_field(bstr, self._samples_per_chunk)
+        self._read_field(bstr, self._sample_description_index)
+
+
+class ChunkOffsetBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_count)
+
+
+class ChunkOffsetBoxEntryFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._chunk_offset = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def chunk_offset(self):
+        return self._chunk_offset.value
+
+    @chunk_offset.setter
+    def chunk_offset(self, value):
+        self._set_field(self._chunk_offset, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._chunk_offset)
 
 
 # dinf boxes
