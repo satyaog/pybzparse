@@ -1265,6 +1265,43 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
         self._read_field(bstr, self._pre_defined2)
 
 
+class PlainTextSampleEntry(SampleEntryBoxFieldsList):
+    pass
+
+
+class SimpleTextSampleEntryBoxFieldsList(PlainTextSampleEntry):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._content_encoding = \
+            self._register_field(Field(value_type="bytes", is_string=True))
+        self._mime_format = \
+            self._register_field(Field(value_type="bytes", is_string=True))
+
+    @property
+    def content_encoding(self):
+        return self._content_encoding.value
+
+    @content_encoding.setter
+    def content_encoding(self, value):
+        self._set_field(self._content_encoding, *value)
+
+    @property
+    def mime_format(self):
+        return self._mime_format.value
+
+    @mime_format.setter
+    def mime_format(self, value):
+        self._set_field(self._mime_format, *value)
+
+    def parse_fields(self, bstr, header):
+        super().parse_fields(bstr, header)
+        del header
+
+        self._read_field(bstr, self._content_encoding)
+        self._read_field(bstr, self._mime_format)
+
+
 # dinf boxes
 class DataReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):

@@ -1219,3 +1219,38 @@ def test_avc1_box():
 
     assert bytes(next(Parser.parse(bs))) == bs.bytes
     assert bytes(box) == bs.bytes
+
+
+def test_stxt_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+              "uintbe:16, "
+              "bytes:1, bytes:11",
+              28, b"stxt",
+              0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+              1,
+              b'\0', b'text/plain\0')
+
+    box_header = headers.BoxHeader()
+    stxt = bx_def.STXT(box_header)
+
+    stxt.header.type = b"stxt"
+    stxt.data_reference_index = (1,)
+    stxt.content_encoding = (b'\0',)
+    stxt.mime_format = (b'text/plain\0',)
+
+    stxt.refresh_box_size()
+
+    box = stxt
+
+    assert box.header.type == b"stxt"
+    assert box.header.box_size == 28
+
+    assert box.data_reference_index == 1
+    assert box.content_encoding == b'\0'
+    assert box.mime_format == b'text/plain\0'
+
+    assert len(box.boxes) == 0
+
+    assert bytes(next(Parser.parse(bs))) == bs.bytes
+    assert bytes(box) == bs.bytes

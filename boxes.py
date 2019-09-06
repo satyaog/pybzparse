@@ -641,6 +641,26 @@ class AVC1SampleEntryBox(VisualSampleEntryBox):
     type = b"avc1"
 
 
+class PlainTextSampleEntryBox(SampleEntryBox):
+    type = b"____"
+
+
+class SimpleTextSampleEntryBox(SampleEntryBox, SimpleTextSampleEntryBoxFieldsList):
+    type = b"stxt"
+
+    def __init__(self, header):
+        super().__init__(header)
+        SimpleTextSampleEntryBoxFieldsList.__init__(self)
+
+    def parse_impl(self, bstr):
+        SimpleTextSampleEntryBoxFieldsList.parse_fields(self, bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
+
+
 # dinf boxes
 class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     type = b"dref"
@@ -1005,6 +1025,7 @@ STCO = ChunkOffsetBox
 
 # stsd boxes
 AVC1 = AVC1SampleEntryBox
+STXT = SimpleTextSampleEntryBox
 
 # dinf boxes
 DREF = DataReferenceBox
@@ -1072,6 +1093,7 @@ Parser.register_box(STCO)
 
 # stsd boxes
 Parser.register_box(AVC1)
+Parser.register_box(STXT)
 
 # dinf boxes
 Parser.register_box(DREF)
