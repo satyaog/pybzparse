@@ -1,3 +1,5 @@
+from abc import ABCMeta, abstractmethod
+
 from fields_lists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
 from pybzparse import Parser
 from ctypes import c_uint32
@@ -6,10 +8,8 @@ from ctypes import c_uint32
 MAX_UINT_32 = c_uint32(-1).value
 
 
-class BoxHeader(BoxHeaderFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length)
-
+class AbstractBoxHeader(metaclass=ABCMeta):
+    def __init__(self):
         self._start_pos = None
         self._type_cache = None
         self._box_size_cache = None
@@ -19,6 +19,50 @@ class BoxHeader(BoxHeaderFieldsList):
     @property
     def start_pos(self):
         return self._start_pos
+
+    @property
+    def type(self):
+        return self._type_cache
+
+    @type.setter
+    @abstractmethod
+    def type(self, value):
+        raise NotImplemented()
+
+    @property
+    def box_size(self):
+        return self._box_size_cache
+
+    @box_size.setter
+    @abstractmethod
+    def box_size(self, value):
+        raise NotImplemented()
+
+    @property
+    def header_size(self):
+        return self._header_size_cache
+
+    @property
+    def content_size(self):
+        return self._content_size_cache
+
+    @abstractmethod
+    def parse(self, bstr):
+        raise NotImplemented()
+
+    @abstractmethod
+    def update_box_size(self, content_size):
+        raise NotImplemented()
+
+    @abstractmethod
+    def refresh_cache(self):
+        raise NotImplemented()
+
+
+class BoxHeader(AbstractBoxHeader, BoxHeaderFieldsList):
+    def __init__(self):
+        super().__init__()
+        BoxHeaderFieldsList.__init__(self)
 
     @property
     def type(self):
@@ -47,14 +91,6 @@ class BoxHeader(BoxHeaderFieldsList):
             self._set_field(self._box_size, value)
             self._drop_field(self._box_ext_size)
         self._refresh_cache(len(bytes(self)))
-
-    @property
-    def header_size(self):
-        return self._header_size_cache
-
-    @property
-    def content_size(self):
-        return self._content_size_cache
 
     def parse(self, bstr):
         self._start_pos = bstr.bytepos
@@ -96,26 +132,14 @@ class BoxHeader(BoxHeaderFieldsList):
                                     else None)
 
 
-class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList, BoxHeaderFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length)
-
-    def parse_fields(self, bstr):
-        super().parse_fields(bstr)
-        self._parse_extend_fields(bstr)
+class FullBoxHeader(BoxHeader, FullBoxHeaderFieldsList):
+    def __init__(self):
+        super().__init__()
+        FullBoxHeaderFieldsList.__init__(self)
 
     def extend_header(self, bstr, header):
-        self._set_field(self._box_size, header.box_size)
-        self._set_field(self._box_type, header.box_type)
-        self._set_field(self._box_ext_size, header.box_ext_size)
-        self._set_field(self._user_type, header.user_type)
-
-        self._start_pos = header.start_pos
-        self._parse_extend_fields(bstr)
-        self._refresh_cache(bstr.bytepos - self._start_pos)
-
-    def _parse_extend_fields(self, bstr):
-        FullBoxHeaderFieldsList.parse_fields(self, bstr)
+        bstr.bytepos = header.start_pos
+        self.parse(bstr)
 
 
 # Register header

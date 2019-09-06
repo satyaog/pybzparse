@@ -158,7 +158,7 @@ class BoxHeaderFieldsList(AbstractFieldsList):
             self._read_field(bstr, self._user_type)
 
 
-class FullBoxHeaderFieldsList(AbstractFieldsList):
+class FullBoxHeaderFieldsList(BoxHeaderFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 2)
 
@@ -184,6 +184,8 @@ class FullBoxHeaderFieldsList(AbstractFieldsList):
         self._set_field(self._flags, *value)
 
     def parse_fields(self, bstr):
+        super().parse_fields(bstr)
+
         self._read_field(bstr, self._version)
         self._read_field(bstr, self._flags)
         self._flags.value = self._flags.value.bytes
