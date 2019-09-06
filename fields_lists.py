@@ -265,11 +265,11 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
         self._duration = \
             self._register_field(Field(value_type="uintbe", size=64))
 
-        # TODO: create a 16.16 float representation
+        # TODO: create a 16.16 fixed representation
         self._rate = \
             self._register_field(Field(value_type="uintbe", size=16, is_list=True))
         self._rate_length = 16 * 2
-        # TODO: create a 8.8 float representation
+        # TODO: create a 8.8 fixed representation
         self._volume = \
             self._register_field(Field(value_type="uintbe", size=8, is_list=True))
         self._volume_length = 8 * 2
@@ -289,6 +289,10 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
         self._next_track_id = \
             self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._reserved0, b'\0' * 2)
+        self._set_field(self._reserved1, [b'\0' * 4] * 2)
 
     @property
     def creation_time(self):
@@ -415,7 +419,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
             self._register_field(Field(value_type="uintbe", size=16))
         self._alternate_group = \
             self._register_field(Field(value_type="uintbe", size=16))
-        # TODO: create a 8.8 float representation
+        # TODO: create a 8.8 fixed representation
         self._volume = \
             self._register_field(Field(value_type="uintbe", size=8, is_list=True))
         self._volume_length = 8 * 2
@@ -427,13 +431,18 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
             self._register_field(Field(value_type="uintbe", size=32, is_list=True))
         self._matrix_length = 32 * 9
 
-        # TODO: create a 16.16 float representation
+        # TODO: create a 16.16 fixed representation
         self._width = \
             self._register_field(Field(value_type="uintbe", size=16, is_list=True))
         self._width_length = 16 * 2
         self._height = \
             self._register_field(Field(value_type="uintbe", size=16, is_list=True))
         self._height_length = 16 * 2
+
+        # initialize with empty value
+        self._set_field(self._reserved0, b'\0' * 4)
+        self._set_field(self._reserved1, [b'\0' * 4] * 2)
+        self._set_field(self._reserved2, b'\0' * 2)
 
     @property
     def creation_time(self):
@@ -572,6 +581,9 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
         self._pre_defined = \
             self._register_field(Field(value_type="uintbe", size=16))
 
+        # initialize with empty value
+        self._set_field(self._pad0, 0x1)
+
     @property
     def creation_time(self):
         return self._creation_time.value
@@ -655,6 +667,9 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
         self._name = \
             self._register_field(Field(value_type="bytes", is_string=True))
 
+        # initialize with empty value
+        self._set_field(self._reserved0, [b'\0' * 4] * 3)
+
     @property
     def pre_defined(self):
         return self._pre_defined.value
@@ -697,6 +712,9 @@ class EditListBoxFieldsList(AbstractFieldsList):
         super().__init__(length + 1)
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
 
     @property
     def entry_count(self):
@@ -808,6 +826,9 @@ class SampleDescriptionBoxFieldsList(AbstractFieldsList):
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
 
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
+
     @property
     def entry_count(self):
         return self._entry_count.value
@@ -826,6 +847,9 @@ class TimeToSampleBoxFieldsList(AbstractFieldsList):
         super().__init__(length + 1)
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
 
     @property
     def entry_count(self):
@@ -876,6 +900,9 @@ class CompositionOffsetBoxFieldsList(AbstractFieldsList):
         super().__init__(length + 1)
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
 
     @property
     def entry_count(self):
@@ -930,6 +957,9 @@ class SampleSizeBoxFieldsList(AbstractFieldsList):
         self._sample_size = self._register_field(Field(value_type="uintbe", size=32))
         self._sample_count = self._register_field(Field(value_type="uintbe", size=32))
 
+        # initialize with empty value
+        self._set_field(self._sample_count, 0)
+
     @property
     def sample_size(self):
         return self._sample_size.value
@@ -977,6 +1007,9 @@ class SampleToChunkBoxFieldsList(AbstractFieldsList):
         super().__init__(length + 1)
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
 
     @property
     def entry_count(self):
@@ -1039,6 +1072,9 @@ class ChunkOffsetBoxFieldsList(AbstractFieldsList):
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
 
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
+
     @property
     def entry_count(self):
         return self._entry_count.value
@@ -1078,6 +1114,9 @@ class DataReferenceBoxFieldsList(AbstractFieldsList):
         super().__init__(length + 1)
 
         self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
 
     @property
     def entry_count(self):

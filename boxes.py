@@ -196,8 +196,8 @@ class UnknownBox(AbstractBox, MixinDictRepr):
 
 class DataBox(AbstractBox, DataBoxFieldsList, MixinDictRepr):
     def __init__(self, header):
-        DataBoxFieldsList.__init__(self)
         super().__init__(header)
+        DataBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         bstr.bytepos = self._header.start_pos + self._header.header_size
@@ -215,8 +215,8 @@ class FileTypeBox(AbstractBox, FileTypeBoxFieldsList, MixinDictRepr):
     type = b"ftyp"
 
     def __init__(self, header):
-        FileTypeBoxFieldsList.__init__(self)
         super().__init__(header)
+        FileTypeBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -256,11 +256,8 @@ class MovieHeaderBox(AbstractFullBox, MovieHeaderBoxFieldsList, MixinDictRepr):
     type = b"mvhd"
 
     def __init__(self, header):
-        MovieHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._reserved0, b'\0' * 2)
-        self._set_field(self._reserved1, [b'\0' * 4] * 2)
+        MovieHeaderBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -281,12 +278,8 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
     type = b"tkhd"
 
     def __init__(self, header):
-        TrackHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._reserved0, b'\0' * 4)
-        self._set_field(self._reserved1, [b'\0' * 4] * 2)
-        self._set_field(self._reserved2, b'\0' * 2)
+        TrackHeaderBoxFieldsList.__init__(self)
 
     @property
     def width(self):
@@ -331,10 +324,8 @@ class MediaHeaderBox(AbstractFullBox, MediaHeaderBoxFieldsList, MixinDictRepr):
     type = b"mdhd"
 
     def __init__(self, header):
-        MediaHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._pad0, 0x1)
+        MediaHeaderBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -350,10 +341,8 @@ class HandlerReferenceBox(AbstractFullBox, HandlerReferenceBoxFieldsList, MixinD
     type = b"hdlr"
 
     def __init__(self, header):
-        HandlerReferenceBoxFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._reserved0, [b'\0' * 4] * 3)
+        HandlerReferenceBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -378,10 +367,8 @@ class EditListBox(AbstractFullBox, EditListSubFieldsList, MixinDictRepr):
     type = b"elst"
 
     def __init__(self, header):
-        EditListSubFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        EditListSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -404,8 +391,8 @@ class VideoMediaHeaderBox(AbstractFullBox, VideoMediaHeaderBoxFieldsList, MixinD
     type = b"vmhd"
 
     def __init__(self, header):
-        VideoMediaHeaderBoxFieldsList.__init__(self)
         super().__init__(header)
+        VideoMediaHeaderBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -439,10 +426,8 @@ class SampleDescriptionBox(ContainerBox, SampleDescriptionBoxFieldsList, MixinDi
     type = b"stsd"
 
     def __init__(self, header):
-        SampleDescriptionBoxFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        SampleDescriptionBoxFieldsList.__init__(self)
 
     def append(self, box):
         super().append(box)
@@ -495,10 +480,8 @@ class TimeToSampleBox(AbstractFullBox, TimeToSampleSubFieldsList,
     type = b"stts"
 
     def __init__(self, header):
-        TimeToSampleSubFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        TimeToSampleSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -521,10 +504,8 @@ class CompositionOffsetBox(AbstractFullBox, CompositionOffsetSubFieldsList,
     type = b"ctts"
 
     def __init__(self, header):
-        CompositionOffsetSubFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        CompositionOffsetSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -546,10 +527,8 @@ class SampleSizeBox(AbstractFullBox, SampleSizeSubFieldsList, MixinDictRepr):
     type = b"stsz"
 
     def __init__(self, header):
-        SampleSizeSubFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._sample_count, 0)
+        SampleSizeSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -572,10 +551,8 @@ class SampleToChunkBox(AbstractFullBox, SampleToChunkSubFieldsList,
     type = b"stsc"
 
     def __init__(self, header):
-        SampleToChunkSubFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        SampleToChunkSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -597,10 +574,8 @@ class ChunkOffsetBox(AbstractFullBox, ChunkOffsetSubFieldsList, MixinDictRepr):
     type = b"stco"
 
     def __init__(self, header):
-        ChunkOffsetSubFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        ChunkOffsetSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -623,10 +598,8 @@ class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     type = b"dref"
 
     def __init__(self, header):
-        DataReferenceBoxFieldsList.__init__(self)
         super().__init__(header)
-
-        self._set_field(self._entry_count, 0)
+        DataReferenceBoxFieldsList.__init__(self)
 
     def append(self, box):
         super().append(box)
@@ -678,8 +651,8 @@ class PrimaryItemBox(AbstractFullBox, PrimaryItemBoxFieldsList, MixinDictRepr):
     type = b"pitm"
 
     def __init__(self, header):
-        PrimaryItemBoxFieldsList.__init__(self)
         super().__init__(header)
+        PrimaryItemBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -695,8 +668,8 @@ class ItemInformationBox(ContainerBox, ItemInformationBoxFieldsList, MixinDictRe
     type = b"iinf"
 
     def __init__(self, header):
-        ItemInformationBoxFieldsList.__init__(self)
         super().__init__(header)
+        ItemInformationBoxFieldsList.__init__(self)
 
     def append(self, box):
         super().append(box)
@@ -749,8 +722,8 @@ class DataEntryUrlBox(AbstractFullBox, DataEntryUrlBoxFieldsList, MixinDictRepr)
     type = b"url "
 
     def __init__(self, header):
-        DataEntryUrlBoxFieldsList.__init__(self)
         super().__init__(header)
+        DataEntryUrlBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -766,8 +739,8 @@ class DataEntryUrnBox(AbstractFullBox, DataEntryUrnBoxFieldsList, MixinDictRepr)
     type = b"urn "
 
     def __init__(self, header):
-        DataEntryUrnBoxFieldsList.__init__(self)
         super().__init__(header)
+        DataEntryUrnBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -784,8 +757,8 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
     type = b"infe"
 
     def __init__(self, header):
-        ItemInfoEntryBoxFieldsList.__init__(self)
         super().__init__(header)
+        ItemInfoEntryBoxFieldsList.__init__(self)
 
     def parse_impl(self, bstr):
         self.parse_fields(bstr, self._header)
@@ -860,8 +833,8 @@ class ItemLocationBox(AbstractFullBox, ItemLocationSubFieldsList, MixinDictRepr)
     type = b"iloc"
 
     def __init__(self, header):
-        ItemLocationSubFieldsList.__init__(self)
         super().__init__(header)
+        ItemLocationSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
@@ -885,8 +858,8 @@ class SingleItemTypeReferenceBox(AbstractBox, SingleItemTypeReferenceBoxFieldsLi
     type = b""
 
     def __init__(self, header):
-        SingleItemTypeReferenceBoxFieldsList.__init__(self)
         super().__init__(header)
+        SingleItemTypeReferenceBoxFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -903,8 +876,8 @@ class SingleItemTypeReferenceBoxLarge(AbstractBox, SingleItemTypeReferenceBoxLar
     type = b""
 
     def __init__(self, header):
-        SingleItemTypeReferenceBoxLargeFieldsList.__init__(self)
         super().__init__(header)
+        SingleItemTypeReferenceBoxLargeFieldsList.__init__(self)
 
     def load(self, bstr):
         pass
@@ -926,8 +899,8 @@ class ItemPropertyAssociationBox(AbstractFullBox, ItemPropertyAssociationSubFiel
     type = b"ipma"
 
     def __init__(self, header):
-        ItemPropertyAssociationSubFieldsList.__init__(self)
         super().__init__(header)
+        ItemPropertyAssociationSubFieldsList.__init__(self)
 
     def load(self, bstr):
         self.load_sub_fields(bstr, self._header)
