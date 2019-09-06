@@ -1086,3 +1086,136 @@ def test_stco_box():
     parsed_box.load(bs)
     assert bytes(parsed_box) == bs.bytes
     assert bytes(box) == bs.bytes
+
+
+def test_sample_entry_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+              "uintbe:16",
+              16, b"____",
+              0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+              1)
+
+    box_header = headers.BoxHeader()
+    sample_entry_box = bx_def.SampleEntryBox(box_header)
+
+    sample_entry_box.header.type = b"____"
+    sample_entry_box.data_reference_index = (1,)
+
+    sample_entry_box.refresh_box_size()
+
+    box = sample_entry_box
+
+    assert box.header.type == b"____"
+    assert box.header.box_size == 16
+
+    assert box.data_reference_index == 1
+
+    assert len(box.boxes) == 0
+
+    assert bytes(box) == bs.bytes
+
+
+def test_visual_sample_entry_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+              "uintbe:16, "
+              "uintbe:16, uintbe:16, uintbe:32, uintbe:32, uintbe:32, "
+              "uintbe:16, uintbe:16, uintbe:16, uintbe:16, uintbe:16, uintbe:16, "
+              "uintbe:32, "
+              "uintbe:16, bytes:32, uintbe:16, "
+              "intbe:16",
+              86, b"____",
+              0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+              1,
+              0x0, 0x0, 0x0, 0x0, 0x0,
+              512, 512, 72, 0, 72, 0,
+              0x0,
+              1, b'\0' * 32, 24,
+              -1)
+
+    box_header = headers.BoxHeader()
+    visual_sample_entry_box = bx_def.VisualSampleEntryBox(box_header)
+
+    visual_sample_entry_box.header.type = b"____"
+    visual_sample_entry_box.data_reference_index = (1,)
+    visual_sample_entry_box.width = (512,)
+    visual_sample_entry_box.height = (512,)
+    visual_sample_entry_box.horizresolution = ([72, 0],)
+    visual_sample_entry_box.vertresolution = ([72, 0],)
+    visual_sample_entry_box.frame_count = (1,)
+    visual_sample_entry_box.compressorname = (b'\0' * 32,)
+    visual_sample_entry_box.depth = (24,)
+
+    visual_sample_entry_box.refresh_box_size()
+
+    box = visual_sample_entry_box
+
+    assert box.header.type == b"____"
+    assert box.header.box_size == 86
+
+    assert box.data_reference_index == 1
+    assert box.width == 512
+    assert box.height == 512
+    assert box.horizresolution == [72, 0]
+    assert box.vertresolution == [72, 0]
+    assert box.frame_count == 1
+    assert box.compressorname == b'\0' * 32
+    assert box.depth == 24
+
+    assert len(box.boxes) == 0
+
+    assert bytes(box) == bs.bytes
+
+
+def test_avc1_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+              "uintbe:16, "
+              "uintbe:16, uintbe:16, uintbe:32, uintbe:32, uintbe:32, "
+              "uintbe:16, uintbe:16, uintbe:16, uintbe:16, uintbe:16, uintbe:16, "
+              "uintbe:32, "
+              "uintbe:16, bytes:32, uintbe:16, "
+              "intbe:16",
+              86, b"avc1",
+              0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+              1,
+              0x0, 0x0, 0x0, 0x0, 0x0,
+              512, 512, 72, 0, 72, 0,
+              0x0,
+              1, b'\0' * 32, 24,
+              -1)
+
+    box_header = headers.BoxHeader()
+    avc1 = bx_def.AVC1(box_header)
+
+    avc1.header.type = b"avc1"
+    avc1.data_reference_index = (1,)
+    avc1.width = (512,)
+    avc1.height = (512,)
+    avc1.horizresolution = ([72, 0],)
+    avc1.vertresolution = ([72, 0],)
+    avc1.frame_count = (1,)
+    avc1.compressorname = (b'\0' * 32,)
+    avc1.depth = (24,)
+
+    avc1.refresh_box_size()
+
+    box = avc1
+
+    assert box.header.type == b"avc1"
+    assert box.header.box_size == 86
+
+    assert box.data_reference_index == 1
+    assert box.width == 512
+    assert box.height == 512
+    assert box.horizresolution == [72, 0]
+    assert box.vertresolution == [72, 0]
+    assert box.frame_count == 1
+    assert box.compressorname == b'\0' * 32
+    assert box.depth == 24
+
+    assert len(box.boxes) == 0
+
+    assert bytes(next(Parser.parse(bs))) == bs.bytes
+    assert bytes(box) == bs.bytes

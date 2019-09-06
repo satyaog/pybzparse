@@ -1110,6 +1110,161 @@ class ChunkOffsetBoxEntryFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._chunk_offset)
 
 
+# stsd boxes
+class SampleEntryBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._reserved0 = \
+            self._register_field(Field(value_type="bits", size=8, is_list=True))
+        self._reserved0_length = 8 * 6
+        self._data_reference_index = \
+            self._register_field(Field(value_type="uintbe", size=16))
+
+        # initialize with empty value
+        self._set_field(self._reserved0, [b'\0'] * 6)
+
+    @property
+    def data_reference_index(self):
+        return self._data_reference_index.value
+
+    @data_reference_index.setter
+    def data_reference_index(self, value):
+        self._set_field(self._data_reference_index, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._reserved0,
+                         until_pos=bstr.bitpos + self._reserved0_length)
+        self._read_field(bstr, self._data_reference_index)
+
+
+class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 12)
+
+        self._pre_defined0 = \
+            self._register_field(Field(value_type="bits", size=16))
+        self._reserved1 = \
+            self._register_field(Field(value_type="bits", size=16))
+        self._pre_defined1 = \
+            self._register_field(Field(value_type="bits", size=32, is_list=True))
+        self._pre_defined1_length = 32 * 3
+
+        self._width = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._height = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        # TODO: create a 16.16 fixed representation
+        self._horizresolution = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
+        self._horizresolution_length = 16 * 2
+        # TODO: create a 16.16 fixed representation
+        self._vertresolution = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
+        self._vertresolution_length = 16 * 2
+
+        self._reserved2 = \
+            self._register_field(Field(value_type="bits", size=32))
+
+        self._frame_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._compressorname = \
+            self._register_field(Field(value_type="bytes", size=32))
+        self._depth = \
+            self._register_field(Field(value_type="uintbe", size=16))
+
+        self._pre_defined2 = \
+            self._register_field(Field(value_type="bits", size=16))
+
+        # initialize with empty value
+        self._set_field(self._pre_defined0, b'\0' * 2)
+        self._set_field(self._reserved1, b'\0' * 2)
+        self._set_field(self._pre_defined1, [b'\0' * 4] * 3)
+        self._set_field(self._reserved2, b'\0' * 4)
+        self._set_field(self._pre_defined2, (-1).to_bytes(2, 'big', signed=True))
+
+    @property
+    def width(self):
+        return self._width.value
+
+    @width.setter
+    def width(self, value):
+        self._set_field(self._width, *value)
+
+    @property
+    def height(self):
+        return self._height.value
+
+    @height.setter
+    def height(self, value):
+        self._set_field(self._height, *value)
+
+    @property
+    def horizresolution(self):
+        return self._horizresolution.value
+
+    @horizresolution.setter
+    def horizresolution(self, value):
+        self._set_field(self._horizresolution, *value)
+
+    @property
+    def vertresolution(self):
+        return self._vertresolution.value
+
+    @vertresolution.setter
+    def vertresolution(self, value):
+        self._set_field(self._vertresolution, *value)
+
+    @property
+    def frame_count(self):
+        return self._frame_count.value
+
+    @frame_count.setter
+    def frame_count(self, value):
+        self._set_field(self._frame_count, *value)
+
+    @property
+    def compressorname(self):
+        return self._compressorname.value
+
+    @compressorname.setter
+    def compressorname(self, value):
+        self._set_field(self._compressorname, *value)
+
+    @property
+    def depth(self):
+        return self._depth.value
+
+    @depth.setter
+    def depth(self, value):
+        self._set_field(self._depth, *value)
+
+    def parse_fields(self, bstr, header):
+        super().parse_fields(bstr, header)
+        del header
+
+        self._read_field(bstr, self._pre_defined0)
+        self._read_field(bstr, self._reserved1)
+        self._read_field(bstr, self._pre_defined1,
+                         until_pos=bstr.bitpos + self._pre_defined1_length)
+
+        self._read_field(bstr, self._width)
+        self._read_field(bstr, self._height)
+        self._read_field(bstr, self._horizresolution,
+                         until_pos=bstr.bitpos + self._horizresolution_length)
+        self._read_field(bstr, self._vertresolution,
+                         until_pos=bstr.bitpos + self._vertresolution_length)
+
+        self._read_field(bstr, self._reserved2)
+
+        self._read_field(bstr, self._frame_count)
+        self._read_field(bstr, self._compressorname)
+        self._read_field(bstr, self._depth)
+
+        self._read_field(bstr, self._pre_defined2)
+
+
 # dinf boxes
 class DataReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):

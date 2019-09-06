@@ -593,6 +593,54 @@ class ChunkOffsetBox(AbstractFullBox, ChunkOffsetSubFieldsList, MixinDictRepr):
         return ChunkOffsetSubFieldsList.__bytes__(self)
 
 
+# stsd boxes
+class SampleEntryBox(ContainerBox, SampleEntryBoxFieldsList, MixinDictRepr):
+    type = b"____"
+
+    def __init__(self, header):
+        super().__init__(header)
+        SampleEntryBoxFieldsList.__init__(self)
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def refresh_box_size(self):
+        self.refresh_boxes_size()
+        boxes_size = 0
+        for box in self._boxes:
+            boxes_size += box.header.box_size
+        fields_size = len(AbstractFieldsList.__bytes__(self))
+        padding_size = len(self.padding)
+        box_size = len(bytes(self._header)) + fields_size + boxes_size + padding_size
+        if self._header.box_size != box_size:
+            self._header.update_box_size(fields_size + boxes_size + padding_size)
+
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
+
+
+class VisualSampleEntryBox(SampleEntryBox, VisualSampleEntryBoxFieldsList):
+    type = b"____"
+
+    def __init__(self, header):
+        super().__init__(header)
+        VisualSampleEntryBoxFieldsList.__init__(self)
+
+    def parse_impl(self, bstr):
+        VisualSampleEntryBoxFieldsList.parse_fields(self, bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
+
+
+class AVC1SampleEntryBox(VisualSampleEntryBox):
+    type = b"avc1"
+
+
 # dinf boxes
 class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     type = b"dref"
@@ -955,6 +1003,9 @@ STSZ = SampleSizeBox
 STSC = SampleToChunkBox
 STCO = ChunkOffsetBox
 
+# stsd boxes
+AVC1 = AVC1SampleEntryBox
+
 # dinf boxes
 DREF = DataReferenceBox
 PITM = PrimaryItemBox
@@ -1018,6 +1069,9 @@ Parser.register_box(CTTS)
 Parser.register_box(STSZ)
 Parser.register_box(STSC)
 Parser.register_box(STCO)
+
+# stsd boxes
+Parser.register_box(AVC1)
 
 # dinf boxes
 Parser.register_box(DREF)
