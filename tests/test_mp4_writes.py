@@ -10,84 +10,13 @@ from utils import from_mp4_time, to_mp4_time
 
 
 def _make_track(creation_time, modification_time,
-                trak_id, trak_name, trak_flags,
-                type_media_header, sample_descriptions,
-                samples_sizes, samples_offsets):
+                track_header, handler_reference, type_media_header,
+                sample_descriptions, samples_sizes, samples_offsets):
     # MOOV.TRAK
     trak = bx_def.TRAK(headers.BoxHeader())
     trak.header.type = b"trak"
 
-    # MOOV.TRAK.TKHD
-    tkhd = bx_def.TKHD(headers.FullBoxHeader())
-
-    tkhd.header.type = b"tkhd"
-    tkhd.header.version = (1,)
-    # "\x00\x00\x01" trak is enabled
-    # "\x00\x00\x02" trak is used in the presentation
-    # "\x00\x00\x04" trak is used in the preview
-    # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
-    tkhd.header.flags = (trak_flags,)
-
-    tkhd.creation_time = (creation_time,)
-    tkhd.modification_time = (modification_time,)
-    tkhd.track_id = (trak_id,)
-    tkhd.duration = (60,)
-
-    tkhd.layer = (0,)
-    tkhd.alternate_group = (0,)
-    tkhd.volume = ([0, 0],)
-
-    # TODO: validate matrix (and check if those are 16.16 floats)
-    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
-
-    # TODO: make sure that this is the canvas size
-    tkhd.width = ([512, 0],)
-    tkhd.height = ([512, 0],)
-
-    tkhd.refresh_box_size()
-
-    assert tkhd.header.type == b"tkhd"
-    assert tkhd.header.box_size == 104
-    assert tkhd.header.version == 1
-    assert tkhd.header.flags == trak_flags
-
-    assert tkhd.creation_time == creation_time
-    assert tkhd.modification_time == modification_time
-    assert tkhd.track_id == trak_id
-    assert tkhd.duration == 60
-
-    assert tkhd.layer == 0
-    assert tkhd.alternate_group == 0
-    assert tkhd.volume == [0, 0]
-
-    assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
-
-    assert tkhd.width == 512
-    assert tkhd.height == 512
-
-    assert tkhd.is_audio is False
-
-    assert bytes(tkhd) == \
-           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
-                "uintbe:64, uintbe:64, uintbe:32, "
-                "bits:32, "
-                "uintbe:64, "
-                "bits:32, bits:32, "
-                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
-                "bits:16, "
-                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
-                "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
-                104, b"tkhd", 1, trak_flags,
-                creation_time, modification_time, trak_id,
-                b"\x00" * 4,
-                60,
-                b"\x00" * 4, b"\x00" * 4,
-                0, 0, 0, 0,
-                b"\x00" * 2,
-                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
-                512, 0, 512, 0)
-
-    trak.append(tkhd)
+    trak.append(track_header)
 
     # # MOOV.TRAK.EDTS
     # edts = bx_def.EDTS(headers.BoxHeader())
@@ -183,35 +112,7 @@ def _make_track(creation_time, modification_time,
 
     mdia.append(mdhd)
 
-    # MOOV.TRAK.MDIA.HDLR
-    hdlr = bx_def.HDLR(headers.FullBoxHeader())
-
-    hdlr.header.type = b"hdlr"
-    hdlr.header.version = (0,)
-    hdlr.header.flags = (b"\x00\x00\x00",)
-    hdlr.pre_defined = (0,)
-    hdlr.handler_type = (b"vide",)
-    hdlr.name = (trak_name,)
-
-    hdlr.refresh_box_size()
-
-    assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(trak_name)
-    assert hdlr.header.version == 0
-    assert hdlr.header.flags == b"\x00\x00\x00"
-    assert hdlr.pre_defined == 0
-    assert hdlr.handler_type == b"vide"
-    # TODO: validate the use of the name
-    assert hdlr.name == trak_name
-
-    assert bytes(hdlr) == \
-           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
-                "uintbe:32, bytes:4, bits:32, bits:32, bits:32, bytes:{}"
-                .format(len(trak_name)),
-                32 + len(trak_name), b"hdlr", 0, b"\x00\x00\x00",
-                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, trak_name)
-
-    mdia.append(hdlr)
+    mdia.append(handler_reference)
 
     # MOOV.TRAK.MDIA.MINF
     minf = bx_def.MINF(headers.BoxHeader())
@@ -253,7 +154,7 @@ def _make_track(creation_time, modification_time,
     dref.refresh_box_size()
 
     assert dref.header.type == b"dref"
-    assert dref.header.box_size == 28
+    assert dref.header.box_size == 12 + 16
     assert dref.header.version == 0
     assert dref.header.flags == b"\x00\x00\x00"
     assert dref.entry_count == 1
@@ -416,8 +317,6 @@ def _make_track(creation_time, modification_time,
     stbl.refresh_box_size()
 
     assert stbl.header.type == b"stbl"
-    assert stbl.header.box_size == 8 + 112 + \
-           (sample_descriptions.header.box_size if sample_descriptions else 0)
     assert len(stbl.boxes) == 5 if sample_descriptions else 4
 
     minf.append(stbl)
@@ -425,8 +324,6 @@ def _make_track(creation_time, modification_time,
     minf.refresh_box_size()
 
     assert minf.header.type == b"minf"
-    assert minf.header.box_size == 8 + 156 + type_media_header.header.box_size + \
-           (sample_descriptions.header.box_size if sample_descriptions else 0)
     assert len(minf.boxes) == 3
 
     mdia.append(minf)
@@ -434,9 +331,6 @@ def _make_track(creation_time, modification_time,
     mdia.refresh_box_size()
 
     assert mdia.header.type == b"mdia"
-    assert mdia.header.box_size == 8 + 240 + \
-           (sample_descriptions.header.box_size if sample_descriptions else 0) + \
-           type_media_header.header.box_size + len(trak_name)
     assert len(mdia.boxes) == 3
 
     trak.append(mdia)
@@ -444,9 +338,6 @@ def _make_track(creation_time, modification_time,
     trak.refresh_box_size()
 
     assert trak.header.type == b"trak"
-    assert trak.header.box_size == 8 + 352 + \
-           (sample_descriptions.header.box_size if sample_descriptions else 0) + \
-           type_media_header.header.box_size + len(trak_name)
     assert len(trak.boxes) == 2
 
     return trak
@@ -572,6 +463,104 @@ def test_mp4_dataset():
 
     moov.append(mvhd)
 
+    # MOOV.TRAK.TKHD
+    tkhd = bx_def.TKHD(headers.FullBoxHeader())
+
+    tkhd.header.type = b"tkhd"
+    tkhd.header.version = (1,)
+    # "\x00\x00\x01" trak is enabled
+    # "\x00\x00\x02" trak is used in the presentation
+    # "\x00\x00\x04" trak is used in the preview
+    # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
+    tkhd.header.flags = (b"\x00\x00\x03",)
+
+    tkhd.creation_time = (creation_time,)
+    tkhd.modification_time = (modification_time,)
+    tkhd.track_id = (1,)
+    tkhd.duration = (60,)
+
+    tkhd.layer = (0,)
+    tkhd.alternate_group = (0,)
+    tkhd.volume = ([0, 0],)
+
+    # TODO: validate matrix (and check if those are 16.16 floats)
+    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+
+    # TODO: make sure that this is the canvas size
+    tkhd.width = ([512, 0],)
+    tkhd.height = ([512, 0],)
+
+    tkhd.refresh_box_size()
+
+    assert tkhd.header.type == b"tkhd"
+    assert tkhd.header.box_size == 104
+    assert tkhd.header.version == 1
+    assert tkhd.header.flags == b"\x00\x00\x03"
+
+    assert tkhd.creation_time == creation_time
+    assert tkhd.modification_time == modification_time
+    assert tkhd.track_id == 1
+    assert tkhd.duration == 60
+
+    assert tkhd.layer == 0
+    assert tkhd.alternate_group == 0
+    assert tkhd.volume == [0, 0]
+
+    assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+
+    assert tkhd.width == 512
+    assert tkhd.height == 512
+
+    assert tkhd.is_audio is False
+
+    assert bytes(tkhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, "
+                "bits:32, "
+                "uintbe:64, "
+                "bits:32, bits:32, "
+                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+                "bits:16, "
+                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+                "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                104, b"tkhd", 1, b"\x00\x00\x03",
+                creation_time, modification_time, 1,
+                b"\x00" * 4,
+                60,
+                b"\x00" * 4, b"\x00" * 4,
+                0, 0, 0, 0,
+                b"\x00" * 2,
+                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
+                512, 0, 512, 0)
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = bx_def.HDLR(headers.FullBoxHeader())
+
+    hdlr.header.type = b"hdlr"
+    hdlr.header.version = (0,)
+    hdlr.header.flags = (b"\x00\x00\x00",)
+    hdlr.pre_defined = (0,)
+    hdlr.handler_type = (b"vide",)
+    hdlr.name = (b"Benzina_inputs\0",)
+
+    hdlr.refresh_box_size()
+
+    assert hdlr.header.type == b"hdlr"
+    assert hdlr.header.box_size == 32 + len(b"Benzina_inputs\0")
+    assert hdlr.header.version == 0
+    assert hdlr.header.flags == b"\x00\x00\x00"
+    assert hdlr.pre_defined == 0
+    assert hdlr.handler_type == b"vide"
+    # TODO: validate the use of the name
+    assert hdlr.name == b"Benzina_inputs\0"
+
+    assert bytes(hdlr)[4:] == \
+           pack("bytes:4, uintbe:8, bits:24, "
+                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
+                b"hdlr", 0, b"\x00\x00\x00",
+                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
+           b"Benzina_inputs\0"
+
     # MOOV.TRAK.MDIA.MINF.VMHD
     vmhd = bx_def.VMHD(headers.FullBoxHeader())
 
@@ -635,13 +624,110 @@ def test_mp4_dataset():
     offset = ftyp.header.box_size + mdat.header.header_size
     sizes = [198297, 127477, 192476]
     trak = _make_track(creation_time, modification_time,
-                       1, b"Benzina_inputs\0", b"\x00\x00\x03",
-                       vmhd, stsd,
+                       tkhd, hdlr, vmhd, stsd,
                        sizes, [offset,
                                offset + sum(sizes[0:1]),
                                offset + sum(sizes[0:2])])
 
     moov.append(trak)
+
+    # MOOV.TRAK.TKHD
+    tkhd = bx_def.TKHD(headers.FullBoxHeader())
+
+    tkhd.header.type = b"tkhd"
+    tkhd.header.version = (1,)
+    # "\x00\x00\x01" trak is enabled
+    # "\x00\x00\x02" trak is used in the presentation
+    # "\x00\x00\x04" trak is used in the preview
+    # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
+    tkhd.header.flags = (b"\x00\x00\x00",)
+
+    tkhd.creation_time = (creation_time,)
+    tkhd.modification_time = (modification_time,)
+    tkhd.track_id = (2,)
+    tkhd.duration = (60,)
+
+    tkhd.layer = (0,)
+    tkhd.alternate_group = (0,)
+    tkhd.volume = ([0, 0],)
+
+    # TODO: validate matrix (and check if those are 16.16 floats)
+    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+
+    # TODO: make sure that this is the canvas size
+    tkhd.width = ([512, 0],)
+    tkhd.height = ([512, 0],)
+
+    tkhd.refresh_box_size()
+
+    assert tkhd.header.type == b"tkhd"
+    assert tkhd.header.box_size == 104
+    assert tkhd.header.version == 1
+    assert tkhd.header.flags == b"\x00\x00\x00"
+
+    assert tkhd.creation_time == creation_time
+    assert tkhd.modification_time == modification_time
+    assert tkhd.track_id == 2
+    assert tkhd.duration == 60
+
+    assert tkhd.layer == 0
+    assert tkhd.alternate_group == 0
+    assert tkhd.volume == [0, 0]
+
+    assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+
+    assert tkhd.width == 512
+    assert tkhd.height == 512
+
+    assert tkhd.is_audio is False
+
+    assert bytes(tkhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, "
+                "bits:32, "
+                "uintbe:64, "
+                "bits:32, bits:32, "
+                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+                "bits:16, "
+                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+                "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                104, b"tkhd", 1, b"\x00\x00\x00",
+                creation_time, modification_time, 2,
+                b"\x00" * 4,
+                60,
+                b"\x00" * 4, b"\x00" * 4,
+                0, 0, 0, 0,
+                b"\x00" * 2,
+                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
+                512, 0, 512, 0)
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = bx_def.HDLR(headers.FullBoxHeader())
+
+    hdlr.header.type = b"hdlr"
+    hdlr.header.version = (0,)
+    hdlr.header.flags = (b"\x00\x00\x00",)
+    hdlr.pre_defined = (0,)
+    hdlr.handler_type = (b"vide",)
+    hdlr.name = (b"Benzina_names\0",)
+
+    hdlr.refresh_box_size()
+
+    assert hdlr.header.type == b"hdlr"
+    assert hdlr.header.box_size == 32 + len(b"Benzina_names\0")
+    assert hdlr.header.version == 0
+    assert hdlr.header.flags == b"\x00\x00\x00"
+    assert hdlr.pre_defined == 0
+    assert hdlr.handler_type == b"vide"
+    # TODO: validate the use of the name
+    assert hdlr.name == b"Benzina_names\0"
+
+    assert bytes(hdlr)[4:] == \
+           pack("bytes:4, uintbe:8, bits:24, "
+                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
+                b"hdlr", 0, b"\x00\x00\x00",
+                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
+           b"Benzina_names\0"
 
     # MOOV.TRAK.MDIA.MINF.NMHD
     nmhd = bx_def.NMHD(headers.FullBoxHeader())
@@ -664,20 +750,116 @@ def test_mp4_dataset():
     offset += sum(sizes)
     sizes = [23, 23, 23]
     trak = _make_track(creation_time, modification_time,
-                       2, b"Benzina_names\0", b"\x00\x00\x00",
-                       nmhd, None,
+                       tkhd, hdlr, nmhd, None,
                        sizes, [offset,
                                offset + sum(sizes[0:1]),
                                offset + sum(sizes[0:2])])
 
     moov.append(trak)
 
+    # MOOV.TRAK.TKHD
+    tkhd = bx_def.TKHD(headers.FullBoxHeader())
+
+    tkhd.header.type = b"tkhd"
+    tkhd.header.version = (1,)
+    # "\x00\x00\x01" trak is enabled
+    # "\x00\x00\x02" trak is used in the presentation
+    # "\x00\x00\x04" trak is used in the preview
+    # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
+    tkhd.header.flags = (b"\x00\x00\x00",)
+
+    tkhd.creation_time = (creation_time,)
+    tkhd.modification_time = (modification_time,)
+    tkhd.track_id = (3,)
+    tkhd.duration = (60,)
+
+    tkhd.layer = (0,)
+    tkhd.alternate_group = (0,)
+    tkhd.volume = ([0, 0],)
+
+    # TODO: validate matrix (and check if those are 16.16 floats)
+    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+
+    # TODO: make sure that this is the canvas size
+    tkhd.width = ([512, 0],)
+    tkhd.height = ([512, 0],)
+
+    tkhd.refresh_box_size()
+
+    assert tkhd.header.type == b"tkhd"
+    assert tkhd.header.box_size == 104
+    assert tkhd.header.version == 1
+    assert tkhd.header.flags == b"\x00\x00\x00"
+
+    assert tkhd.creation_time == creation_time
+    assert tkhd.modification_time == modification_time
+    assert tkhd.track_id == 3
+    assert tkhd.duration == 60
+
+    assert tkhd.layer == 0
+    assert tkhd.alternate_group == 0
+    assert tkhd.volume == [0, 0]
+
+    assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+
+    assert tkhd.width == 512
+    assert tkhd.height == 512
+
+    assert tkhd.is_audio is False
+
+    assert bytes(tkhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, "
+                "bits:32, "
+                "uintbe:64, "
+                "bits:32, bits:32, "
+                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+                "bits:16, "
+                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+                "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                104, b"tkhd", 1, b"\x00\x00\x00",
+                creation_time, modification_time, 3,
+                b"\x00" * 4,
+                60,
+                b"\x00" * 4, b"\x00" * 4,
+                0, 0, 0, 0,
+                b"\x00" * 2,
+                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
+                512, 0, 512, 0)
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = bx_def.HDLR(headers.FullBoxHeader())
+
+    hdlr.header.type = b"hdlr"
+    hdlr.header.version = (0,)
+    hdlr.header.flags = (b"\x00\x00\x00",)
+    hdlr.pre_defined = (0,)
+    hdlr.handler_type = (b"vide",)
+    hdlr.name = (b"Benzina_targets\0",)
+
+    hdlr.refresh_box_size()
+
+    assert hdlr.header.type == b"hdlr"
+    assert hdlr.header.box_size == 32 + len(b"Benzina_targets\0")
+    assert hdlr.header.version == 0
+    assert hdlr.header.flags == b"\x00\x00\x00"
+    assert hdlr.pre_defined == 0
+    assert hdlr.handler_type == b"vide"
+    # TODO: validate the use of the name
+    assert hdlr.name == b"Benzina_targets\0"
+
+    assert bytes(hdlr)[4:] == \
+           pack("bytes:4, uintbe:8, bits:24, "
+                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
+                b"hdlr", 0, b"\x00\x00\x00",
+                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
+           b"Benzina_targets\0"
+
     # MOOV.TRAK
     offset += sum(sizes)
     sizes = [8, 8, 8]
     trak = _make_track(creation_time, modification_time,
-                       3, b"Benzina_targets\0", b"\x00\x00\x00",
-                       nmhd, None,
+                       tkhd, hdlr, nmhd, None,
                        sizes, [offset,
                                offset + sum(sizes[0:1]),
                                offset + sum(sizes[0:2])])
@@ -689,14 +871,6 @@ def test_mp4_dataset():
     assert mvhd.next_track_id == len(moov.boxes)
 
     assert moov.header.type == b"moov"
-    assert moov.header.box_size == 8 + 1200 + \
-           vmhd.header.box_size + \
-           nmhd.header.box_size + \
-           nmhd.header.box_size + \
-           stsd.header.box_size + \
-           len(b"Benzina_inputs\0") + \
-           len(b"Benzina_names\0") + \
-           len(b"Benzina_targets\0")
     assert len(moov.boxes) == 4
 
     mp4_bytes = b''.join([bytes(ftyp), bytes(mdat), bytes(moov)])
@@ -861,6 +1035,128 @@ def test_mp4_small_vid():
 
     moov.append(mvhd)
 
+    # MOOV.TRAK.TKHD
+    tkhd = bx_def.TKHD(headers.FullBoxHeader())
+
+    tkhd.header.type = b"tkhd"
+    tkhd.header.version = (1,)
+    # "\x00\x00\x01" trak is enabled
+    # "\x00\x00\x02" trak is used in the presentation
+    # "\x00\x00\x04" trak is used in the preview
+    # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
+    tkhd.header.flags = (b"\x00\x00\x03",)
+
+    tkhd.creation_time = (creation_time,)
+    tkhd.modification_time = (modification_time,)
+    tkhd.track_id = (1,)
+    tkhd.duration = (60,)
+
+    tkhd.layer = (0,)
+    tkhd.alternate_group = (0,)
+    tkhd.volume = ([0, 0],)
+
+    # TODO: validate matrix (and check if those are 16.16 floats)
+    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+
+    # TODO: make sure that this is the canvas size
+    tkhd.width = ([512, 0],)
+    tkhd.height = ([512, 0],)
+
+    tkhd.refresh_box_size()
+
+    assert tkhd.header.type == b"tkhd"
+    assert tkhd.header.box_size == 104
+    assert tkhd.header.version == 1
+    assert tkhd.header.flags == b"\x00\x00\x03"
+
+    assert tkhd.creation_time == creation_time
+    assert tkhd.modification_time == modification_time
+    assert tkhd.track_id == 1
+    assert tkhd.duration == 60
+
+    assert tkhd.layer == 0
+    assert tkhd.alternate_group == 0
+    assert tkhd.volume == [0, 0]
+
+    assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+
+    assert tkhd.width == 512
+    assert tkhd.height == 512
+
+    assert tkhd.is_audio is False
+
+    assert bytes(tkhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, "
+                "bits:32, "
+                "uintbe:64, "
+                "bits:32, bits:32, "
+                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+                "bits:16, "
+                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+                "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                104, b"tkhd", 1, b"\x00\x00\x03",
+                creation_time, modification_time, 1,
+                b"\x00" * 4,
+                60,
+                b"\x00" * 4, b"\x00" * 4,
+                0, 0, 0, 0,
+                b"\x00" * 2,
+                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
+                512, 0, 512, 0)
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = bx_def.HDLR(headers.FullBoxHeader())
+
+    hdlr.header.type = b"hdlr"
+    hdlr.header.version = (0,)
+    hdlr.header.flags = (b"\x00\x00\x00",)
+    hdlr.pre_defined = (0,)
+    hdlr.handler_type = (b"vide",)
+    hdlr.name = (b"VideoHandler\0",)
+
+    hdlr.refresh_box_size()
+
+    assert hdlr.header.type == b"hdlr"
+    assert hdlr.header.box_size == 32 + len(b"VideoHandler\0")
+    assert hdlr.header.version == 0
+    assert hdlr.header.flags == b"\x00\x00\x00"
+    assert hdlr.pre_defined == 0
+    assert hdlr.handler_type == b"vide"
+    # TODO: validate the use of the name
+    assert hdlr.name == b"VideoHandler\0"
+
+    assert bytes(hdlr)[4:] == \
+           pack("bytes:4, uintbe:8, bits:24, "
+                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
+                b"hdlr", 0, b"\x00\x00\x00",
+                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
+           b"VideoHandler\0"
+
+    # MOOV.TRAK.MDIA.MINF.VMHD
+    vmhd = bx_def.VMHD(headers.FullBoxHeader())
+
+    vmhd.header.type = b"vmhd"
+    vmhd.header.version = (0,)
+    # flag is 1
+    vmhd.header.flags = (b"\x00\x00\x01",)
+    vmhd.graphicsmode = (0,)
+    vmhd.opcolor = ([0, 0, 0],)
+
+    vmhd.refresh_box_size()
+
+    assert vmhd.header.type == b"vmhd"
+    assert vmhd.header.box_size == 20
+    assert vmhd.header.version == 0
+    assert vmhd.header.flags == b"\x00\x00\x01"
+    assert vmhd.graphicsmode == 0
+    assert vmhd.opcolor == [0, 0, 0]
+
+    assert bytes(vmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                               "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                               20, b"vmhd", 0, b"\x00\x00\x01",
+                               0, 0, 0, 0)
+
     # MOOV.TRAK.MDIA.MINF.VMHD
     vmhd = bx_def.VMHD(headers.FullBoxHeader())
 
@@ -924,8 +1220,7 @@ def test_mp4_small_vid():
     offset = ftyp.header.box_size + mdat.header.header_size
     sizes = [198297, 127477, 192476]
     trak = _make_track(creation_time, modification_time,
-                       1, b"VideoHandler\0", b"\x00\x00\x03",
-                       vmhd, stsd,
+                       tkhd, hdlr, vmhd, stsd,
                        sizes, [offset,
                                offset + sum(sizes[0:1]),
                                offset + sum(sizes[0:2])])
@@ -937,7 +1232,6 @@ def test_mp4_small_vid():
     assert mvhd.next_track_id == len(moov.boxes)
 
     assert moov.header.type == b"moov"
-    assert moov.header.box_size == 8 + 671 + len(b"VideoHandler\0")
     assert len(moov.boxes) == 2
 
     mp4_bytes = b''.join([bytes(ftyp), bytes(mdat), bytes(moov)])
