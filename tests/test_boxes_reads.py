@@ -677,3 +677,30 @@ def test_stxt_box():
     assert len(box.boxes) == 0
 
     assert bytes(box) == bs.bytes
+
+
+def test_mett_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+              "uintbe:16, "
+              "bytes:1, bytes:11",
+              28, b"mett",
+              0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+              1,
+              b'\0', b'image/heif\0')
+
+    box_header = Parser.parse_header(bs)
+    mett = bx_def.METT.parse_box(bs, box_header)
+    box = mett
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"mett"
+    assert box.header.box_size == 28
+
+    assert box.data_reference_index == 1
+    assert box.content_encoding == b'\0'
+    assert box.mime_format == b'image/heif\0'
+
+    assert len(box.boxes) == 0
+
+    assert bytes(box) == bs.bytes
