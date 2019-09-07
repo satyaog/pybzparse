@@ -423,7 +423,7 @@ def test_mp4_dataset():
     mvhd.pre_defined = ([b"\x00" * 4] * 6,)
 
     # == total number of tracks
-    mvhd.next_track_id = (4,)
+    mvhd.next_track_id = (5,)
 
     mvhd.refresh_box_size()
 
@@ -443,7 +443,7 @@ def test_mp4_dataset():
     assert mvhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
     assert mvhd.pre_defined == [b"\x00" * 4] * 6
 
-    assert mvhd.next_track_id == 4
+    assert mvhd.next_track_id == 5
 
     assert bytes(mvhd) == \
            pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
@@ -459,7 +459,7 @@ def test_mp4_dataset():
                 b"\x00" * 2, b"\x00" * 4, b"\x00" * 4,
                 65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
                 b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4,
-                4)
+                5)
 
     moov.append(mvhd)
 
@@ -541,25 +541,25 @@ def test_mp4_dataset():
     hdlr.header.flags = (b"\x00\x00\x00",)
     hdlr.pre_defined = (0,)
     hdlr.handler_type = (b"vide",)
-    hdlr.name = (b"Benzina_inputs\0",)
+    hdlr.name = (b"VideoHandler\0",)
 
     hdlr.refresh_box_size()
 
     assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"Benzina_inputs\0")
+    assert hdlr.header.box_size == 32 + len(b"VideoHandler\0")
     assert hdlr.header.version == 0
     assert hdlr.header.flags == b"\x00\x00\x00"
     assert hdlr.pre_defined == 0
     assert hdlr.handler_type == b"vide"
     # TODO: validate the use of the name
-    assert hdlr.name == b"Benzina_inputs\0"
+    assert hdlr.name == b"VideoHandler\0"
 
     assert bytes(hdlr)[4:] == \
            pack("bytes:4, uintbe:8, bits:24, "
                 "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
                 b"hdlr", 0, b"\x00\x00\x00",
                 0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"Benzina_inputs\0"
+           b"VideoHandler\0"
 
     # MOOV.TRAK.MDIA.MINF.VMHD
     vmhd = bx_def.VMHD(headers.FullBoxHeader())
@@ -732,26 +732,26 @@ def test_mp4_dataset():
     hdlr.header.version = (0,)
     hdlr.header.flags = (b"\x00\x00\x00",)
     hdlr.pre_defined = (0,)
-    hdlr.handler_type = (b"text",)
-    hdlr.name = (b"Benzina_fnames\0",)
+    hdlr.handler_type = (b"meta",)
+    hdlr.name = (b"bzna_inputs\0",)
 
     hdlr.refresh_box_size()
 
     assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"Benzina_fnames\0")
+    assert hdlr.header.box_size == 32 + len(b"bzna_inputs\0")
     assert hdlr.header.version == 0
     assert hdlr.header.flags == b"\x00\x00\x00"
     assert hdlr.pre_defined == 0
-    assert hdlr.handler_type == b"text"
+    assert hdlr.handler_type == b"meta"
     # TODO: validate the use of the name
-    assert hdlr.name == b"Benzina_fnames\0"
+    assert hdlr.name == b"bzna_inputs\0"
 
     assert bytes(hdlr)[4:] == \
            pack("bytes:4, uintbe:8, bits:24, "
                 "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
                 b"hdlr", 0, b"\x00\x00\x00",
-                0, b"text", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"Benzina_fnames\0"
+                0, b"meta", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
+           b"bzna_inputs\0"
 
     # MOOV.TRAK.MDIA.MINF.NMHD
     nmhd = bx_def.NMHD(headers.FullBoxHeader())
@@ -777,24 +777,24 @@ def test_mp4_dataset():
     stsd.header.version = (0,)
     stsd.header.flags = (b"\x00\x00\x00",)
 
-    stxt = bx_def.STXT(headers.BoxHeader())
+    mett = bx_def.METT(headers.BoxHeader())
 
-    stxt.header.type = b"stxt"
-    stxt.data_reference_index = (1,)
-    stxt.content_encoding = (b'\0',)
-    stxt.mime_format = (b'text/plain\0',)
+    mett.header.type = b"mett"
+    mett.data_reference_index = (1,)
+    mett.content_encoding = (b'\0',)
+    mett.mime_format = (b'video/h264\0',)
 
-    stxt.refresh_box_size()
+    mett.refresh_box_size()
 
-    assert stxt.header.type == b"stxt"
-    assert stxt.header.box_size == 28
-    assert stxt.data_reference_index == 1
-    assert stxt.content_encoding == b'\0'
-    assert stxt.mime_format == b'text/plain\0'
+    assert mett.header.type == b"mett"
+    assert mett.header.box_size == 28
+    assert mett.data_reference_index == 1
+    assert mett.content_encoding == b'\0'
+    assert mett.mime_format == b'video/h264\0'
 
-    assert len(stxt.boxes) == 0
+    assert len(mett.boxes) == 0
 
-    stsd.append(stxt)
+    stsd.append(mett)
 
     stsd.refresh_box_size()
 
@@ -803,8 +803,6 @@ def test_mp4_dataset():
     assert len(stsd.boxes) == 1
 
     # MOOV.TRAK
-    offset += sum(sizes)
-    sizes = [23, 23, 23]
     trak = _make_track(creation_time, modification_time,
                        tkhd, hdlr, nmhd, stsd,
                        sizes, [offset,
@@ -891,25 +889,183 @@ def test_mp4_dataset():
     hdlr.header.flags = (b"\x00\x00\x00",)
     hdlr.pre_defined = (0,)
     hdlr.handler_type = (b"text",)
-    hdlr.name = (b"Benzina_targets\0",)
+    hdlr.name = (b"bzna_fnames\0",)
 
     hdlr.refresh_box_size()
 
     assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"Benzina_targets\0")
+    assert hdlr.header.box_size == 32 + len(b"bzna_fnames\0")
     assert hdlr.header.version == 0
     assert hdlr.header.flags == b"\x00\x00\x00"
     assert hdlr.pre_defined == 0
     assert hdlr.handler_type == b"text"
     # TODO: validate the use of the name
-    assert hdlr.name == b"Benzina_targets\0"
+    assert hdlr.name == b"bzna_fnames\0"
 
     assert bytes(hdlr)[4:] == \
            pack("bytes:4, uintbe:8, bits:24, "
                 "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
                 b"hdlr", 0, b"\x00\x00\x00",
                 0, b"text", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"Benzina_targets\0"
+           b"bzna_fnames\0"
+
+    # MOOV.TRAK.MDIA.MINF.NMHD
+    nmhd = bx_def.NMHD(headers.FullBoxHeader())
+
+    nmhd.header.type = b"nmhd"
+    nmhd.header.version = (0,)
+    nmhd.header.flags = (b"\x00\x00\x00",)
+
+    nmhd.refresh_box_size()
+
+    assert nmhd.header.type == b"nmhd"
+    assert nmhd.header.box_size == 12
+    assert nmhd.header.version == 0
+    assert nmhd.header.flags == b"\x00\x00\x00"
+
+    assert bytes(nmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24",
+                               12, b"nmhd", 0, b"\x00\x00\x00")
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = bx_def.STSD(headers.FullBoxHeader())
+
+    stsd.header.type = b"stsd"
+    stsd.header.version = (0,)
+    stsd.header.flags = (b"\x00\x00\x00",)
+
+    stxt = bx_def.STXT(headers.BoxHeader())
+
+    stxt.header.type = b"stxt"
+    stxt.data_reference_index = (1,)
+    stxt.content_encoding = (b'\0',)
+    stxt.mime_format = (b'text/plain\0',)
+
+    stxt.refresh_box_size()
+
+    assert stxt.header.type == b"stxt"
+    assert stxt.header.box_size == 28
+    assert stxt.data_reference_index == 1
+    assert stxt.content_encoding == b'\0'
+    assert stxt.mime_format == b'text/plain\0'
+
+    assert len(stxt.boxes) == 0
+
+    stsd.append(stxt)
+
+    stsd.refresh_box_size()
+
+    assert stsd.header.type == b"stsd"
+    assert stsd.header.box_size == 16 + 28
+    assert len(stsd.boxes) == 1
+
+    # MOOV.TRAK
+    offset += sum(sizes)
+    sizes = [23, 23, 23]
+    trak = _make_track(creation_time, modification_time,
+                       tkhd, hdlr, nmhd, stsd,
+                       sizes, [offset,
+                               offset + sum(sizes[0:1]),
+                               offset + sum(sizes[0:2])])
+
+    moov.append(trak)
+
+    # MOOV.TRAK.TKHD
+    tkhd = bx_def.TKHD(headers.FullBoxHeader())
+
+    tkhd.header.type = b"tkhd"
+    tkhd.header.version = (1,)
+    # "\x00\x00\x01" trak is enabled
+    # "\x00\x00\x02" trak is used in the presentation
+    # "\x00\x00\x04" trak is used in the preview
+    # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
+    tkhd.header.flags = (b"\x00\x00\x00",)
+
+    tkhd.creation_time = (creation_time,)
+    tkhd.modification_time = (modification_time,)
+    tkhd.track_id = (4,)
+    tkhd.duration = (60,)
+
+    tkhd.layer = (0,)
+    tkhd.alternate_group = (0,)
+    tkhd.volume = ([0, 0],)
+
+    # TODO: validate matrix (and check if those are 16.16 floats)
+    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+
+    # TODO: make sure that this is the canvas size
+    tkhd.width = ([0, 0],)
+    tkhd.height = ([0, 0],)
+
+    tkhd.refresh_box_size()
+
+    assert tkhd.header.type == b"tkhd"
+    assert tkhd.header.box_size == 104
+    assert tkhd.header.version == 1
+    assert tkhd.header.flags == b"\x00\x00\x00"
+
+    assert tkhd.creation_time == creation_time
+    assert tkhd.modification_time == modification_time
+    assert tkhd.track_id == 4
+    assert tkhd.duration == 60
+
+    assert tkhd.layer == 0
+    assert tkhd.alternate_group == 0
+    assert tkhd.volume == [0, 0]
+
+    assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+
+    assert tkhd.width == 0
+    assert tkhd.height == 0
+
+    assert tkhd.is_audio is False
+
+    assert bytes(tkhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, "
+                "bits:32, "
+                "uintbe:64, "
+                "bits:32, bits:32, "
+                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+                "bits:16, "
+                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+                "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                104, b"tkhd", 1, b"\x00\x00\x00",
+                creation_time, modification_time, 4,
+                b"\x00" * 4,
+                60,
+                b"\x00" * 4, b"\x00" * 4,
+                0, 0, 0, 0,
+                b"\x00" * 2,
+                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
+                0, 0, 0, 0)
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = bx_def.HDLR(headers.FullBoxHeader())
+
+    hdlr.header.type = b"hdlr"
+    hdlr.header.version = (0,)
+    hdlr.header.flags = (b"\x00\x00\x00",)
+    hdlr.pre_defined = (0,)
+    hdlr.handler_type = (b"text",)
+    hdlr.name = (b"bzna_targets\0",)
+
+    hdlr.refresh_box_size()
+
+    assert hdlr.header.type == b"hdlr"
+    assert hdlr.header.box_size == 32 + len(b"bzna_targets\0")
+    assert hdlr.header.version == 0
+    assert hdlr.header.flags == b"\x00\x00\x00"
+    assert hdlr.pre_defined == 0
+    assert hdlr.handler_type == b"text"
+    # TODO: validate the use of the name
+    assert hdlr.name == b"bzna_targets\0"
+
+    assert bytes(hdlr)[4:] == \
+           pack("bytes:4, uintbe:8, bits:24, "
+                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
+                b"hdlr", 0, b"\x00\x00\x00",
+                0, b"text", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
+           b"bzna_targets\0"
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD
     stsd = bx_def.STSD(headers.FullBoxHeader())
@@ -959,7 +1115,7 @@ def test_mp4_dataset():
     assert mvhd.next_track_id == len(moov.boxes)
 
     assert moov.header.type == b"moov"
-    assert len(moov.boxes) == 4
+    assert len(moov.boxes) == 5
 
     mp4_bytes = b''.join([bytes(ftyp), bytes(mdat), bytes(moov)])
 
@@ -969,11 +1125,11 @@ def test_mp4_dataset():
         else:
             continue
 
-        # trak.mdia.tkhd.name == b"Benzina_inputs\0"
-        if mdia.boxes[1].name == b"Benzina_inputs\0":
+        # trak.mdia.tkhd.name == b"bzna_inputs\0"
+        if mdia.boxes[1].name == b"bzna_inputs\0":
             pass
-        # trak.mdia.tkhd.name == b"Benzina_names\0"
-        elif mdia.boxes[1].name == b"Benzina_fnames\0":
+        # trak.mdia.tkhd.name == b"bzna_names\0"
+        elif mdia.boxes[1].name == b"bzna_fnames\0":
             # trak.mdia.minf.stbl.stsz
             stsz = mdia.boxes[2].boxes[2].boxes[2]
             # trak.mdia.minf.stbl.stco
@@ -989,8 +1145,8 @@ def test_mp4_dataset():
                 elif i == 2:
                     assert mp4_bytes[entry.chunk_offset:sample_end] == \
                            b"/path/image_3_name.JPEG"
-        # trak.mdia.tkhd.name == b"Benzina_targets\0"
-        elif mdia.boxes[1].name == b"Benzina_targets\0":
+        # trak.mdia.tkhd.name == b"bzna_targets\0"
+        elif mdia.boxes[1].name == b"bzna_targets\0":
             # trak.mdia.minf.stbl.stsz
             stsz = mdia.boxes[2].boxes[2].boxes[2]
             # trak.mdia.minf.stbl.stco
