@@ -592,20 +592,44 @@ def test_mp4_dataset():
     stsd.header.version = (0,)
     stsd.header.flags = (b"\x00\x00\x00",)
 
-    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
-    avc1 = bx_def.UnknownBox(headers.BoxHeader())
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
+    avc1 = bx_def.AVC1(headers.BoxHeader())
 
     avc1.header.type = b"avc1"
-    avc1.payload = b'\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00' \
-                   b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x02\x00' \
-                   b'\x00H\x00\x00\x00H\x00\x00\x00\x00\x00\x00\x00\x01\x00' \
-                   b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
-                   b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
-                   b'\x00\x00\x00\x00\x18\xff\xff\x00\x00\x005avcC\x01d\x10' \
-                   b'\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02\r\xff\x80' \
-                   b'K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03\x00\x02' \
-                   b'\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0\x00\x00\x00\x10' \
-                   b'pasp\x00\x00\x00\x96\x00\x00\x00\x9d'
+    avc1.data_reference_index = (1,)
+    avc1.width = (512,)
+    avc1.height = (512,)
+    avc1.horizresolution = ([72, 0],)
+    avc1.vertresolution = ([72, 0],)
+    avc1.frame_count = (1,)
+    avc1.compressorname = (b'\0' * 32,)
+    avc1.depth = (24,)
+
+    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
+    avcC = bx_def.UnknownBox(headers.BoxHeader())
+    avcC.header.type = b"avcC"
+    avcC.payload = b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02' \
+                   b'\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03' \
+                   b'\x00\x02\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0'
+
+    avcC.refresh_box_size()
+
+    assert avcC.header.type == b"avcC"
+    assert avcC.header.box_size == 53
+
+    avc1.append(avcC)
+
+    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
+    pasp = bx_def.UnknownBox(headers.BoxHeader())
+    pasp.header.type = b"pasp"
+    pasp.payload = b'\x00\x00\x00\x96\x00\x00\x00\x9d'
+
+    pasp.refresh_box_size()
+
+    assert pasp.header.type == b"pasp"
+    assert pasp.header.box_size == 16
+
+    avc1.append(pasp)
 
     avc1.refresh_box_size()
 
@@ -1188,20 +1212,44 @@ def test_mp4_small_vid():
     stsd.header.version = (0,)
     stsd.header.flags = (b"\x00\x00\x00",)
 
-    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
-    avc1 = bx_def.UnknownBox(headers.BoxHeader())
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
+    avc1 = bx_def.AVC1(headers.BoxHeader())
 
     avc1.header.type = b"avc1"
-    avc1.payload = b'\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00' \
-                   b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x02\x00' \
-                   b'\x00H\x00\x00\x00H\x00\x00\x00\x00\x00\x00\x00\x01\x00' \
-                   b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
-                   b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
-                   b'\x00\x00\x00\x00\x18\xff\xff\x00\x00\x005avcC\x01d\x10' \
-                   b'\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02\r\xff\x80' \
-                   b'K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03\x00\x02' \
-                   b'\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0\x00\x00\x00\x10' \
-                   b'pasp\x00\x00\x00\x96\x00\x00\x00\x9d'
+    avc1.data_reference_index = (1,)
+    avc1.width = (512,)
+    avc1.height = (512,)
+    avc1.horizresolution = ([72, 0],)
+    avc1.vertresolution = ([72, 0],)
+    avc1.frame_count = (1,)
+    avc1.compressorname = (b'\0' * 32,)
+    avc1.depth = (24,)
+
+    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
+    avcC = bx_def.UnknownBox(headers.BoxHeader())
+    avcC.header.type = b"avcC"
+    avcC.payload = b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02' \
+                   b'\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03' \
+                   b'\x00\x02\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0'
+
+    avcC.refresh_box_size()
+
+    assert avcC.header.type == b"avcC"
+    assert avcC.header.box_size == 53
+
+    avc1.append(avcC)
+
+    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
+    pasp = bx_def.UnknownBox(headers.BoxHeader())
+    pasp.header.type = b"pasp"
+    pasp.payload = b'\x00\x00\x00\x96\x00\x00\x00\x9d'
+
+    pasp.refresh_box_size()
+
+    assert pasp.header.type == b"pasp"
+    assert pasp.header.box_size == 16
+
+    avc1.append(pasp)
 
     avc1.refresh_box_size()
 
