@@ -348,21 +348,23 @@ def test_mp4_dataset():
     # FTYP
     ftyp = bx_def.FTYP(headers.BoxHeader())
     ftyp.header.type = b"ftyp"
-    ftyp.major_brand = (1652190817,)            # b"bzna"
+    ftyp.major_brand = (1769172845,)            # b"isom"
     ftyp.minor_version = (0,)
-    ftyp.compatible_brands = ([1836069937],)    # b"mp41"
+    ftyp.compatible_brands = ([1652190817,      # b"bzna"
+                               1769172845],)    # b"isom"
 
     ftyp.refresh_box_size()
 
     assert ftyp.header.type == b"ftyp"
-    assert ftyp.header.box_size == 20
-    assert ftyp.major_brand == 1652190817           # b"bzna"
+    assert ftyp.header.box_size == 24
+    assert ftyp.major_brand == 1769172845           # b"isom"
     assert ftyp.minor_version == 0
-    assert ftyp.compatible_brands == [1836069937]   # b"mp41"
+    assert ftyp.compatible_brands == [1652190817,   # b"bzna"
+                                      1769172845]   # b"isom"
     assert bytes(ftyp) == pack("uintbe:32, bytes:4, bytes:4, uintbe:32, "
-                               "bytes:4",
-                               20, b"ftyp", b"bzna", 0,
-                               b"mp41")
+                               "bytes:8",
+                               24, b"ftyp", b"isom", 0,
+                               b"bznaisom")
 
     # MDAT
     mdat = bx_def.MDAT(headers.BoxHeader())
