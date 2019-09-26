@@ -183,6 +183,9 @@ class SampleSizeSubFieldsList(AbstractSubFieldsList, SampleSizeBoxFieldsList):
 
     def load_sub_fields(self, bstr, header):
         bstr.bytepos = self._samples_start_pos
+        # if a constant size is used, there's no array
+        if self._sample_size.value != 0:
+            return
         for i in range(self._sample_count.value):
             sample = SampleSizeBoxSampleFieldsList()
             sample.parse_fields(bstr, header)
