@@ -1289,3 +1289,43 @@ def test_mett_box():
 
     assert bytes(next(Parser.parse(bs))) == bs.bytes
     assert bytes(box) == bs.bytes
+
+
+def test_clap_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+              "intbe:32, uintbe:32, intbe:32, uintbe:32",
+              40, b"clap",
+              500, 1, 333, 1,
+              -12, 2, -179, 2)
+
+    box_header = headers.BoxHeader()
+    clap = bx_def.CLAP(box_header)
+    clap.header.type = b"clap"
+
+    clap.clean_aperture_width_n = (500,)
+    clap.clean_aperture_width_d = (1,)
+    clap.clean_aperture_height_n = (333,)
+    clap.clean_aperture_height_d = (1,)
+    clap.horiz_off_n = (-12,)
+    clap.horiz_off_d = (2,)
+    clap.vert_off_n = (-179,)
+    clap.vert_off_d = (2,)
+
+    clap.refresh_box_size()
+
+    box = clap
+
+    assert box.header.type == b"clap"
+    assert box.header.box_size == 40
+    assert box.clean_aperture_width_n == 500
+    assert box.clean_aperture_width_d == 1
+    assert box.clean_aperture_height_n == 333
+    assert box.clean_aperture_height_d == 1
+    assert box.horiz_off_n == -12
+    assert box.horiz_off_d == 2
+    assert box.vert_off_n == -179
+    assert box.vert_off_d == 2
+
+    assert bytes(next(Parser.parse(bs))) == bs.bytes
+    assert bytes(box) == bs.bytes

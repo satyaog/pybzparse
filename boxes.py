@@ -681,6 +681,23 @@ class TextMetaDataSampleEntryBox(MetaDataSampleEntry, TextMetaDataSampleEntryBox
                b''.join([bytes(box) for box in self._boxes])
 
 
+class CleanApertureBox(AbstractBox, CleanApertureBoxFieldsList):
+    type = b"clap"
+
+    def __init__(self, header):
+        super().__init__(header)
+        CleanApertureBoxFieldsList.__init__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
+
+
 # dinf boxes
 class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     type = b"dref"
@@ -1047,6 +1064,7 @@ STCO = ChunkOffsetBox
 AVC1 = AVC1SampleEntryBox
 STXT = SimpleTextSampleEntryBox
 METT = TextMetaDataSampleEntryBox
+CLAP = CleanApertureBox
 
 # dinf boxes
 DREF = DataReferenceBox
@@ -1116,6 +1134,7 @@ Parser.register_box(STCO)
 Parser.register_box(AVC1)
 Parser.register_box(STXT)
 Parser.register_box(METT)
+Parser.register_box(CLAP)
 
 # dinf boxes
 Parser.register_box(DREF)

@@ -1339,6 +1339,106 @@ class TextMetaDataSampleEntryBoxFieldsList(MetaDataSampleEntryBoxFieldsList):
         self._read_field(bstr, self._mime_format)
 
 
+class CleanApertureBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 8)
+
+        self._clean_aperture_width_n = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._clean_aperture_width_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+        self._clean_aperture_height_n = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._clean_aperture_height_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+        self._horiz_off_n = \
+            self._register_field(Field(value_type="intbe", size=32))
+        self._horiz_off_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+        self._vert_off_n = \
+            self._register_field(Field(value_type="intbe", size=32))
+        self._vert_off_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def clean_aperture_width_n(self):
+        return self._clean_aperture_width_n.value
+
+    @clean_aperture_width_n.setter
+    def clean_aperture_width_n(self, value):
+        self._set_field(self._clean_aperture_width_n, *value)
+
+    @property
+    def clean_aperture_width_d(self):
+        return self._clean_aperture_width_d.value
+
+    @clean_aperture_width_d.setter
+    def clean_aperture_width_d(self, value):
+        self._set_field(self._clean_aperture_width_d, *value)
+
+    @property
+    def clean_aperture_height_n(self):
+        return self._clean_aperture_height_n.value
+
+    @clean_aperture_height_n.setter
+    def clean_aperture_height_n(self, value):
+        self._set_field(self._clean_aperture_height_n, *value)
+
+    @property
+    def clean_aperture_height_d(self):
+        return self._clean_aperture_height_d.value
+
+    @clean_aperture_height_d.setter
+    def clean_aperture_height_d(self, value):
+        self._set_field(self._clean_aperture_height_d, *value)
+
+    @property
+    def horiz_off_n(self):
+        return self._horiz_off_n.value
+
+    @horiz_off_n.setter
+    def horiz_off_n(self, value):
+        self._set_field(self._horiz_off_n, *value)
+
+    @property
+    def horiz_off_d(self):
+        return self._horiz_off_d.value
+
+    @horiz_off_d.setter
+    def horiz_off_d(self, value):
+        self._set_field(self._horiz_off_d, *value)
+
+    @property
+    def vert_off_n(self):
+        return self._vert_off_n.value
+
+    @vert_off_n.setter
+    def vert_off_n(self, value):
+        self._set_field(self._vert_off_n, *value)
+
+    @property
+    def vert_off_d(self):
+        return self._vert_off_d.value
+
+    @vert_off_d.setter
+    def vert_off_d(self, value):
+        self._set_field(self._vert_off_d, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._clean_aperture_width_n)
+        self._read_field(bstr, self._clean_aperture_width_d)
+        self._read_field(bstr, self._clean_aperture_height_n)
+        self._read_field(bstr, self._clean_aperture_height_d)
+        self._read_field(bstr, self._horiz_off_n)
+        self._read_field(bstr, self._horiz_off_d)
+        self._read_field(bstr, self._vert_off_n)
+        self._read_field(bstr, self._vert_off_d)
+
+
 # dinf boxes
 class DataReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
