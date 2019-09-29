@@ -634,7 +634,7 @@ def test_mp4_dataset():
     avc1.refresh_box_size()
 
     assert avc1.header.type == b"avc1"
-    assert avc1.header.box_size == 155
+    assert avc1.header.box_size == 86 + 53 + 16
 
     stsd.append(avc1)
 
@@ -679,8 +679,8 @@ def test_mp4_dataset():
     tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([512, 0],)
-    tkhd.height = ([512, 0],)
+    tkhd.width = ([0, 0],)
+    tkhd.height = ([0, 0],)
 
     tkhd.refresh_box_size()
 
@@ -700,8 +700,8 @@ def test_mp4_dataset():
 
     assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
 
-    assert tkhd.width == 512
-    assert tkhd.height == 512
+    assert tkhd.width == 0
+    assert tkhd.height == 0
 
     assert tkhd.is_audio is False
 
@@ -723,7 +723,7 @@ def test_mp4_dataset():
                 0, 0, 0, 0,
                 b"\x00" * 2,
                 65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
-                512, 0, 512, 0)
+                0, 0, 0, 0)
 
     # MOOV.TRAK.MDIA.HDLR
     hdlr = bx_def.HDLR(headers.FullBoxHeader())
@@ -805,8 +805,8 @@ def test_mp4_dataset():
     tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([512, 0],)
-    tkhd.height = ([512, 0],)
+    tkhd.width = ([0, 0],)
+    tkhd.height = ([0, 0],)
 
     tkhd.refresh_box_size()
 
@@ -826,8 +826,8 @@ def test_mp4_dataset():
 
     assert tkhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
 
-    assert tkhd.width == 512
-    assert tkhd.height == 512
+    assert tkhd.width == 0
+    assert tkhd.height == 0
 
     assert tkhd.is_audio is False
 
@@ -849,7 +849,7 @@ def test_mp4_dataset():
                 0, 0, 0, 0,
                 b"\x00" * 2,
                 65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
-                512, 0, 512, 0)
+                0, 0, 0, 0)
 
     # MOOV.TRAK.MDIA.HDLR
     hdlr = bx_def.HDLR(headers.FullBoxHeader())
@@ -1254,7 +1254,7 @@ def test_mp4_small_vid():
     avc1.refresh_box_size()
 
     assert avc1.header.type == b"avc1"
-    assert avc1.header.box_size == 155
+    assert avc1.header.box_size == 86 + 53 + 16
 
     stsd.append(avc1)
 
