@@ -174,8 +174,7 @@ def _make_track(creation_time, modification_time,
     stbl = bx_def.STBL(headers.BoxHeader())
     stbl.header.type = b"stbl"
 
-    if sample_descriptions is not None:
-        stbl.append(sample_descriptions)
+    stbl.append(sample_descriptions)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STTS
     stts = bx_def.STTS(headers.FullBoxHeader())
@@ -255,7 +254,7 @@ def _make_track(creation_time, modification_time,
     entry = stsc.append_and_return()
     entry.first_chunk = (1,)
     entry.samples_per_chunk = (1,)
-    entry.sample_description_index = (1 if sample_descriptions else 0,)
+    entry.sample_description_index = (1,)
 
     stsc.refresh_box_size()
 
@@ -267,15 +266,14 @@ def _make_track(creation_time, modification_time,
     assert len(stsc.entries) == 1
     assert stsc.entries[0].first_chunk == 1
     assert stsc.entries[0].samples_per_chunk == 1
-    assert stsc.entries[0].sample_description_index == \
-           (1 if sample_descriptions else 0)
+    assert stsc.entries[0].sample_description_index == 1
 
     assert bytes(stsc) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
                                "uintbe:32, "
                                "uintbe:32, uintbe:32, uintbe:32",
                                28, b"stsc", 0, b"\x00\x00\x00",
                                1,
-                               1, 1, (1 if sample_descriptions else 0))
+                               1, 1, 1)
 
     stbl.append(stsc)
 
@@ -317,7 +315,7 @@ def _make_track(creation_time, modification_time,
     stbl.refresh_box_size()
 
     assert stbl.header.type == b"stbl"
-    assert len(stbl.boxes) == 5 if sample_descriptions else 4
+    assert len(stbl.boxes) == 5
 
     minf.append(stbl)
 
@@ -770,11 +768,43 @@ def test_mp4_dataset():
     assert bytes(nmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24",
                                12, b"nmhd", 0, b"\x00\x00\x00")
 
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = bx_def.STSD(headers.FullBoxHeader())
+
+    stsd.header.type = b"stsd"
+    stsd.header.version = (0,)
+    stsd.header.flags = (b"\x00\x00\x00",)
+
+    stxt = bx_def.STXT(headers.BoxHeader())
+
+    stxt.header.type = b"stxt"
+    stxt.data_reference_index = (1,)
+    stxt.content_encoding = (b'\0',)
+    stxt.mime_format = (b'text/plain\0',)
+
+    stxt.refresh_box_size()
+
+    assert stxt.header.type == b"stxt"
+    assert stxt.header.box_size == 28
+    assert stxt.data_reference_index == 1
+    assert stxt.content_encoding == b'\0'
+    assert stxt.mime_format == b'text/plain\0'
+
+    assert len(stxt.boxes) == 0
+
+    stsd.append(stxt)
+
+    stsd.refresh_box_size()
+
+    assert stsd.header.type == b"stsd"
+    assert stsd.header.box_size == 16 + 28
+    assert len(stsd.boxes) == 1
+
     # MOOV.TRAK
     offset += sum(sizes)
     sizes = [23, 23, 23]
     trak = _make_track(creation_time, modification_time,
-                       tkhd, hdlr, nmhd, None,
+                       tkhd, hdlr, nmhd, stsd,
                        sizes, [offset,
                                offset + sum(sizes[0:1]),
                                offset + sum(sizes[0:2])])
@@ -879,11 +909,43 @@ def test_mp4_dataset():
                 0, b"text", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
            b"Benzina_targets\0"
 
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = bx_def.STSD(headers.FullBoxHeader())
+
+    stsd.header.type = b"stsd"
+    stsd.header.version = (0,)
+    stsd.header.flags = (b"\x00\x00\x00",)
+
+    stxt = bx_def.STXT(headers.BoxHeader())
+
+    stxt.header.type = b"stxt"
+    stxt.data_reference_index = (1,)
+    stxt.content_encoding = (b'\0',)
+    stxt.mime_format = (b'text/plain\0',)
+
+    stxt.refresh_box_size()
+
+    assert stxt.header.type == b"stxt"
+    assert stxt.header.box_size == 28
+    assert stxt.data_reference_index == 1
+    assert stxt.content_encoding == b'\0'
+    assert stxt.mime_format == b'text/plain\0'
+
+    assert len(stxt.boxes) == 0
+
+    stsd.append(stxt)
+
+    stsd.refresh_box_size()
+
+    assert stsd.header.type == b"stsd"
+    assert stsd.header.box_size == 16 + 28
+    assert len(stsd.boxes) == 1
+
     # MOOV.TRAK
     offset += sum(sizes)
     sizes = [8, 8, 8]
     trak = _make_track(creation_time, modification_time,
-                       tkhd, hdlr, nmhd, None,
+                       tkhd, hdlr, nmhd, stsd,
                        sizes, [offset,
                                offset + sum(sizes[0:1]),
                                offset + sum(sizes[0:2])])
@@ -911,9 +973,9 @@ def test_mp4_dataset():
         # trak.mdia.tkhd.name == b"Benzina_names\0"
         elif mdia.boxes[1].name == b"Benzina_fnames\0":
             # trak.mdia.minf.stbl.stsz
-            stsz = mdia.boxes[2].boxes[2].boxes[1]
+            stsz = mdia.boxes[2].boxes[2].boxes[2]
             # trak.mdia.minf.stbl.stco
-            stco = mdia.boxes[2].boxes[2].boxes[3]
+            stco = mdia.boxes[2].boxes[2].boxes[4]
             for i, (sample, entry) in enumerate(zip(stsz.samples, stco.entries)):
                 sample_end = entry.chunk_offset + sample.entry_size
                 if i == 0:
@@ -928,9 +990,9 @@ def test_mp4_dataset():
         # trak.mdia.tkhd.name == b"Benzina_targets\0"
         elif mdia.boxes[1].name == b"Benzina_targets\0":
             # trak.mdia.minf.stbl.stsz
-            stsz = mdia.boxes[2].boxes[2].boxes[1]
+            stsz = mdia.boxes[2].boxes[2].boxes[2]
             # trak.mdia.minf.stbl.stco
-            stco = mdia.boxes[2].boxes[2].boxes[3]
+            stco = mdia.boxes[2].boxes[2].boxes[4]
             for i, (sample, entry) in enumerate(zip(stsz.samples, stco.entries)):
                 sample_end = entry.chunk_offset + sample.entry_size
                 if i == 0:
