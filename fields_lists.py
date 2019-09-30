@@ -1339,6 +1339,37 @@ class TextMetaDataSampleEntryBoxFieldsList(MetaDataSampleEntryBoxFieldsList):
         self._read_field(bstr, self._mime_format)
 
 
+class PixelAspectRatioBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 8)
+
+        self._h_spacing = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._v_spacing = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def h_spacing(self):
+        return self._h_spacing.value
+
+    @h_spacing.setter
+    def h_spacing(self, value):
+        self._set_field(self._h_spacing, *value)
+
+    @property
+    def v_spacing(self):
+        return self._v_spacing.value
+
+    @v_spacing.setter
+    def v_spacing(self, value):
+        self._set_field(self._v_spacing, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._h_spacing)
+        self._read_field(bstr, self._v_spacing)
+
+
 class CleanApertureBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 8)

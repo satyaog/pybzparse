@@ -706,6 +706,23 @@ def test_mett_box():
     assert bytes(box) == bs.bytes
 
 
+def test_pasp_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:32, uintbe:32",
+              16, b"pasp", 150, 157)
+
+    box_header = Parser.parse_header(bs)
+    pasp = bx_def.PASP.parse_box(bs, box_header)
+    box = pasp
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"pasp"
+    assert box.header.box_size == 16
+
+    assert box.h_spacing == 150
+    assert box.v_spacing == 157
+    assert bytes(box) == bs.bytes
+
+
 def test_clap_box():
     bs = pack("uintbe:32, bytes:4, "
               "uintbe:32, uintbe:32, uintbe:32, uintbe:32, "

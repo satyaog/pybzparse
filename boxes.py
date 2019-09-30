@@ -681,6 +681,23 @@ class TextMetaDataSampleEntryBox(MetaDataSampleEntry, TextMetaDataSampleEntryBox
                b''.join([bytes(box) for box in self._boxes])
 
 
+class PixelAspectRatioBox(AbstractBox, PixelAspectRatioBoxFieldsList):
+    type = b"pasp"
+
+    def __init__(self, header):
+        super().__init__(header)
+        PixelAspectRatioBoxFieldsList.__init__(self)
+
+    def load(self, bstr):
+        pass
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self)
+
+
 class CleanApertureBox(AbstractBox, CleanApertureBoxFieldsList):
     type = b"clap"
 
@@ -1064,6 +1081,7 @@ STCO = ChunkOffsetBox
 AVC1 = AVC1SampleEntryBox
 STXT = SimpleTextSampleEntryBox
 METT = TextMetaDataSampleEntryBox
+PASP = PixelAspectRatioBox
 CLAP = CleanApertureBox
 
 # dinf boxes
@@ -1134,6 +1152,7 @@ Parser.register_box(STCO)
 Parser.register_box(AVC1)
 Parser.register_box(STXT)
 Parser.register_box(METT)
+Parser.register_box(PASP)
 Parser.register_box(CLAP)
 
 # dinf boxes
