@@ -4,7 +4,7 @@ from bitstring import pack
 
 import boxes as bx_def
 import headers
-from utils import to_mp4_time, make_track
+from utils import to_mp4_time, make_track, make_vide_track
 
 
 def test_mp4_dataset():
@@ -132,10 +132,10 @@ def test_mp4_dataset():
     # MOOV.TRAK
     offset = ftyp.header.box_size + mdat.header.header_size
     sizes = [198297, 127477, 192476]
-    trak = make_track(creation_time, modification_time,
-                      sizes, [offset,
-                              offset + sum(sizes[0:1]),
-                              offset + sum(sizes[0:2])])
+    trak = make_vide_track(creation_time, modification_time, b"VideoHandler\0",
+                           sizes, [offset,
+                                   offset + sum(sizes[0:1]),
+                                   offset + sum(sizes[0:2])])
 
     # MOOV.TRAK.TKHD
     tkhd = trak.boxes[0]
@@ -207,99 +207,18 @@ def test_mp4_dataset():
                 0x1, 21, 14, 4,
                 b"\x00" * 2)
 
-    # MOOV.TRAK.MDIA.HDLR
-    hdlr = trak.boxes[-1].boxes[1]
-    hdlr.handler_type = (b"vide",)
-    hdlr.name = (b"VideoHandler\0",)
-
-    hdlr.refresh_box_size()
-
-    assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"VideoHandler\0")
-    assert hdlr.handler_type == b"vide"
-    # TODO: validate the use of the name
-    assert hdlr.name == b"VideoHandler\0"
-
-    assert bytes(hdlr)[4:] == \
-           pack("bytes:4, uintbe:8, bits:24, "
-                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
-                b"hdlr", 0, b"\x00\x00\x00",
-                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"VideoHandler\0"
-
-    # MOOV.TRAK.MDIA.MINF.VMHD
-    vmhd = bx_def.VMHD(headers.FullBoxHeader())
-    trak.boxes[-1].boxes[-1].boxes[0] = vmhd
-
-    vmhd.header.type = b"vmhd"
-    vmhd.header.version = (0,)
-    # flag is 1
-    vmhd.header.flags = (b"\x00\x00\x01",)
-    vmhd.graphicsmode = (0,)
-    vmhd.opcolor = ([0, 0, 0],)
-
-    vmhd.refresh_box_size()
-
-    assert vmhd.header.type == b"vmhd"
-    assert vmhd.header.box_size == 20
-    assert vmhd.header.version == 0
-    assert vmhd.header.flags == b"\x00\x00\x01"
-    assert vmhd.graphicsmode == 0
-    assert vmhd.opcolor == [0, 0, 0]
-
-    assert bytes(vmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
-                               "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
-                               20, b"vmhd", 0, b"\x00\x00\x01",
-                               0, 0, 0, 0)
-
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD
-    stsd = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0]
-
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
-    avc1 = bx_def.AVC1(headers.BoxHeader())
-
-    avc1.header.type = b"avc1"
-    avc1.data_reference_index = (1,)
+    avc1 = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0].boxes[0]
     avc1.width = (512,)
     avc1.height = (512,)
     avc1.horizresolution = ([72, 0],)
     avc1.vertresolution = ([72, 0],)
-    avc1.frame_count = (1,)
-    avc1.compressorname = (b'\0' * 32,)
-    avc1.depth = (24,)
-
-    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
-    avcC = bx_def.UnknownBox(headers.BoxHeader())
-    avcC.header.type = b"avcC"
-    avcC.payload = b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02' \
-                   b'\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03' \
-                   b'\x00\x02\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0'
-
-    avcC.refresh_box_size()
-
-    assert avcC.header.type == b"avcC"
-    assert avcC.header.box_size == 53
-
-    avc1.append(avcC)
-
-    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
-    pasp = bx_def.UnknownBox(headers.BoxHeader())
-    pasp.header.type = b"pasp"
-    pasp.payload = b'\x00\x00\x00\x96\x00\x00\x00\x9d'
-
-    pasp.refresh_box_size()
-
-    assert pasp.header.type == b"pasp"
-    assert pasp.header.box_size == 16
-
-    avc1.append(pasp)
 
     assert avc1.header.type == b"avc1"
-
-    stsd.append(avc1)
-
-    assert stsd.header.type == b"stsd"
-    assert len(stsd.boxes) == 1
+    assert avc1.width == 512
+    assert avc1.height == 512
+    assert avc1.horizresolution == [72, 0]
+    assert avc1.vertresolution == [72, 0]
 
     moov.append(trak)
 
@@ -905,10 +824,10 @@ def test_mp4_small_vid():
     # MOOV.TRAK
     offset = ftyp.header.box_size + mdat.header.header_size
     sizes = [198297, 127477, 192476]
-    trak = make_track(creation_time, modification_time,
-                      sizes, [offset,
-                              offset + sum(sizes[0:1]),
-                              offset + sum(sizes[0:2])])
+    trak = make_vide_track(creation_time, modification_time, b"VideoHandler\0",
+                           sizes, [offset,
+                                   offset + sum(sizes[0:1]),
+                                   offset + sum(sizes[0:2])])
 
     # MOOV.TRAK.TKHD
     tkhd = trak.boxes[0]
@@ -980,105 +899,24 @@ def test_mp4_small_vid():
                 0x1, 21, 14, 4,
                 b"\x00" * 2)
 
-    # MOOV.TRAK.MDIA.HDLR
-    hdlr = trak.boxes[-1].boxes[1]
-    hdlr.handler_type = (b"vide",)
-    hdlr.name = (b"VideoHandler\0",)
-
-    hdlr.refresh_box_size()
-
-    assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"VideoHandler\0")
-    assert hdlr.handler_type == b"vide"
-    # TODO: validate the use of the name
-    assert hdlr.name == b"VideoHandler\0"
-
-    assert bytes(hdlr)[4:] == \
-           pack("bytes:4, uintbe:8, bits:24, "
-                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
-                b"hdlr", 0, b"\x00\x00\x00",
-                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"VideoHandler\0"
-
-    # MOOV.TRAK.MDIA.MINF.VMHD
-    vmhd = bx_def.VMHD(headers.FullBoxHeader())
-    trak.boxes[-1].boxes[-1].boxes[0] = vmhd
-
-    vmhd.header.type = b"vmhd"
-    vmhd.header.version = (0,)
-    # flag is 1
-    vmhd.header.flags = (b"\x00\x00\x01",)
-    vmhd.graphicsmode = (0,)
-    vmhd.opcolor = ([0, 0, 0],)
-
-    vmhd.refresh_box_size()
-
-    assert vmhd.header.type == b"vmhd"
-    assert vmhd.header.box_size == 20
-    assert vmhd.header.version == 0
-    assert vmhd.header.flags == b"\x00\x00\x01"
-    assert vmhd.graphicsmode == 0
-    assert vmhd.opcolor == [0, 0, 0]
-
-    assert bytes(vmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
-                               "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
-                               20, b"vmhd", 0, b"\x00\x00\x01",
-                               0, 0, 0, 0)
-
     # MOOV.TRAK.MDIA.MINF.STBL.STSD
     stsd = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0]
 
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
-    avc1 = bx_def.AVC1(headers.BoxHeader())
+    assert stsd.header.type == b"stsd"
+    assert len(stsd.boxes) == 1
 
-    avc1.header.type = b"avc1"
-    avc1.data_reference_index = (1,)
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
+    avc1 = stsd.boxes[0]
     avc1.width = (512,)
     avc1.height = (512,)
     avc1.horizresolution = ([72, 0],)
     avc1.vertresolution = ([72, 0],)
-    avc1.frame_count = (1,)
-    avc1.compressorname = (b'\0' * 32,)
-    avc1.depth = (24,)
-
-    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
-    avcC = bx_def.UnknownBox(headers.BoxHeader())
-    avcC.header.type = b"avcC"
-    avcC.payload = b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02' \
-                   b'\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03' \
-                   b'\x00\x02\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0'
-
-    avcC.refresh_box_size()
-
-    assert avcC.header.type == b"avcC"
-    assert avcC.header.box_size == 53
-
-    avc1.append(avcC)
-
-    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
-    pasp = bx_def.UnknownBox(headers.BoxHeader())
-    pasp.header.type = b"pasp"
-    pasp.payload = b'\x00\x00\x00\x96\x00\x00\x00\x9d'
-
-    pasp.refresh_box_size()
-
-    assert pasp.header.type == b"pasp"
-    assert pasp.header.box_size == 16
-
-    avc1.append(pasp)
-
-    avc1.refresh_box_size()
 
     assert avc1.header.type == b"avc1"
-    assert avc1.header.box_size == 86 + 53 + 16
-
-    stsd.append(avc1)
-
-    stsd.refresh_box_size()
-
-    assert stsd.header.type == b"stsd"
-    assert stsd.header.box_size == 16 + 155
-    assert len(stsd.boxes) == 1
+    assert avc1.width == 512
+    assert avc1.height == 512
+    assert avc1.horizresolution == [72, 0]
+    assert avc1.vertresolution == [72, 0]
 
     moov.append(trak)
 

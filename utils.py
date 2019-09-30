@@ -216,3 +216,70 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
     trak.append(mdia)
 
     return trak
+
+
+def make_vide_track(creation_time, modification_time, label,
+                    samples_sizes, samples_offsets):
+    trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[-1]
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = mdia.boxes[1]
+    hdlr.handler_type = (b"vide",)
+    hdlr.name = (label,)
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[-1]
+
+    # MOOV.TRAK.MDIA.MINF.VMHD
+    vmhd = bx_def.VMHD(headers.FullBoxHeader())
+    minf.boxes[0] = vmhd
+
+    vmhd.header.type = b"vmhd"
+    vmhd.header.version = (0,)
+    # flag is 1
+    vmhd.header.flags = (b"\x00\x00\x01",)
+    vmhd.graphicsmode = (0,)
+    vmhd.opcolor = ([0, 0, 0],)
+
+    # MOOV.TRAK.MDIA.MINF
+    stbl = minf.boxes[-1]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = stbl.boxes[0]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
+    avc1 = bx_def.AVC1(headers.BoxHeader())
+
+    avc1.header.type = b"avc1"
+    avc1.data_reference_index = (1,)
+    avc1.width = (-1,)
+    avc1.height = (-1,)
+    avc1.horizresolution = ([-1, 0],)
+    avc1.vertresolution = ([-1, 0],)
+    avc1.frame_count = (1,)
+    avc1.compressorname = (b'\0' * 32,)
+    avc1.depth = (24,)
+
+    # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
+    avcC = bx_def.UnknownBox(headers.BoxHeader())
+    avcC.header.type = b"avcC"
+    avcC.payload = b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02' \
+                   b'\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03' \
+                   b'\x00\x02\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0'
+
+    avc1.append(avcC)
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
+    pasp = bx_def.PASP(headers.BoxHeader())
+    pasp.header.type = b"pasp"
+    pasp.h_spacing = (150,)
+    pasp.v_spacing = (157,)
+
+    avc1.append(pasp)
+
+    stsd.append(avc1)
+
+    return trak

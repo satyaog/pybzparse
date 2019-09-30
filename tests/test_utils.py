@@ -237,3 +237,89 @@ def test_make_track():
                                28, b"stco", 0, b"\x00\x00\x00",
                                3,
                                samples_offsets[0], samples_offsets[1], samples_offsets[2])
+
+
+def test_make_vide_trak():
+    creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
+    modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
+
+    samples_sizes = [198297, 127477, 192476]
+    samples_offsets = [10,
+                       10 + sum(samples_sizes[0:1]),
+                       10 + sum(samples_sizes[0:2])]
+    trak = utils.make_vide_track(creation_time, modification_time, b"VideoHandler\0",
+                                 samples_sizes, samples_offsets)
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = trak.boxes[-1].boxes[1]
+    hdlr.refresh_box_size()
+
+    assert hdlr.header.type == b"hdlr"
+    assert hdlr.header.box_size == 45
+    assert hdlr.handler_type == b"vide"
+    # TODO: validate the use of the name
+    assert hdlr.name == b"VideoHandler\0"
+
+    assert bytes(hdlr) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:32, bytes:4, bits:32, bits:32, bits:32, "
+                "bytes:13",
+                45, b"hdlr", 0, b"\x00\x00\x00",
+                0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4,
+                b"VideoHandler\0")
+
+    # MOOV.TRAK.MDIA.MINF.VMHD
+    vmhd = trak.boxes[-1].boxes[-1].boxes[0]
+    vmhd.refresh_box_size()
+
+    assert vmhd.header.type == b"vmhd"
+    assert vmhd.header.box_size == 20
+    assert vmhd.header.version == 0
+    assert vmhd.header.flags == b"\x00\x00\x01"
+    assert vmhd.graphicsmode == 0
+    assert vmhd.opcolor == [0, 0, 0]
+
+    assert bytes(vmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                               "uintbe:16, uintbe:16, uintbe:16, uintbe:16",
+                               20, b"vmhd", 0, b"\x00\x00\x01",
+                               0, 0, 0, 0)
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0]
+
+    assert stsd.header.type == b"stsd"
+    assert len(stsd.boxes) == 1
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
+    avc1 = stsd.boxes[0]
+
+    assert avc1.header.type == b"avc1"
+    assert avc1.data_reference_index == 1
+    assert avc1.width == -1
+    assert avc1.height == -1
+    assert avc1.horizresolution == [-1, 0]
+    assert avc1.vertresolution == [-1, 0]
+    assert avc1.frame_count == 1
+    assert avc1.compressorname == b'\0' * 32
+    assert avc1.depth == 24
+    assert len(avc1.boxes) == 2
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
+    avcC = avc1.boxes[0]
+    avcC.refresh_box_size()
+
+    assert avcC.header.type == b"avcC"
+    assert avcC.header.box_size == 53
+    assert avcC.payload == b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8' \
+                           b'\x10\x02\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00' \
+                           b'\x01\x00\x00\x03\x00\x02\x04\x01\x00\x07h\xee\x01' \
+                           b'\x9cL\x84\xc0'
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
+    pasp = avc1.boxes[1]
+    pasp.refresh_box_size()
+
+    assert pasp.header.type == b"pasp"
+    assert pasp.header.box_size == 16
+    assert pasp.h_spacing == 150
+    assert pasp.v_spacing == 157
