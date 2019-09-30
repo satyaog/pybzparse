@@ -218,6 +218,90 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
     return trak
 
 
+def make_meta_track(creation_time, modification_time, label,
+                    samples_sizes, samples_offsets):
+    trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[-1]
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = mdia.boxes[1]
+    hdlr.handler_type = (b"meta",)
+    hdlr.name = (label,)
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[-1]
+
+    # MOOV.TRAK.MDIA.MINF.NMHD
+    nmhd = bx_def.NMHD(headers.FullBoxHeader())
+    minf.boxes[0] = nmhd
+
+    nmhd.header.type = b"nmhd"
+    nmhd.header.version = (0,)
+    nmhd.header.flags = (b"\x00\x00\x00",)
+
+    # MOOV.TRAK.MDIA.MINF.STBL
+    stbl = minf.boxes[-1]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = stbl.boxes[0]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.METT
+    mett = bx_def.METT(headers.BoxHeader())
+
+    mett.header.type = b"mett"
+    mett.data_reference_index = (1,)
+    mett.content_encoding = (b'\0',)
+    mett.mime_format = (b'\0',)
+
+    stsd.append(mett)
+
+    return trak
+
+
+def make_text_track(creation_time, modification_time, label,
+                    samples_sizes, samples_offsets):
+    trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[-1]
+
+    # MOOV.TRAK.MDIA.HDLR
+    hdlr = mdia.boxes[1]
+    hdlr.handler_type = (b"text",)
+    hdlr.name = (label,)
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[-1]
+
+    # MOOV.TRAK.MDIA.MINF.NMHD
+    nmhd = bx_def.NMHD(headers.FullBoxHeader())
+    minf.boxes[0] = nmhd
+
+    nmhd.header.type = b"nmhd"
+    nmhd.header.version = (0,)
+    nmhd.header.flags = (b"\x00\x00\x00",)
+
+    # MOOV.TRAK.MDIA.MINF.STBL
+    stbl = minf.boxes[-1]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD
+    stsd = stbl.boxes[0]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.STXT
+    stxt = bx_def.STXT(headers.BoxHeader())
+
+    stxt.header.type = b"stxt"
+    stxt.data_reference_index = (1,)
+    stxt.content_encoding = (b'\0',)
+    stxt.mime_format = (b'text/plain\0',)
+
+    stsd.append(stxt)
+
+    return trak
+
+
 def make_vide_track(creation_time, modification_time, label,
                     samples_sizes, samples_offsets):
     trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)

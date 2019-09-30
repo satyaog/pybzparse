@@ -4,7 +4,8 @@ from bitstring import pack
 
 import boxes as bx_def
 import headers
-from utils import to_mp4_time, make_track, make_vide_track
+from utils import to_mp4_time, make_track, \
+    make_meta_track, make_text_track, make_vide_track
 
 
 def test_mp4_dataset():
@@ -223,10 +224,10 @@ def test_mp4_dataset():
     moov.append(trak)
 
     # MOOV.TRAK
-    trak = make_track(creation_time, modification_time,
-                      sizes, [offset,
-                              offset + sum(sizes[0:1]),
-                              offset + sum(sizes[0:2])])
+    trak = make_meta_track(creation_time, modification_time, b"bzna_inputs\0",
+                           sizes, [offset,
+                                   offset + sum(sizes[0:1]),
+                                   offset + sum(sizes[0:2])])
 
     # MOOV.TRAK.TKHD
     tkhd = trak.boxes[0]
@@ -298,79 +299,24 @@ def test_mp4_dataset():
                 0x1, 21, 14, 4,
                 b"\x00" * 2)
 
-    # MOOV.TRAK.MDIA.HDLR
-    hdlr = trak.boxes[-1].boxes[1]
-    hdlr.handler_type = (b"meta",)
-    hdlr.name = (b"bzna_inputs\0",)
-
-    hdlr.refresh_box_size()
-
-    assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"bzna_inputs\0")
-    assert hdlr.handler_type == b"meta"
-    # TODO: validate the use of the name
-    assert hdlr.name == b"bzna_inputs\0"
-
-    assert bytes(hdlr)[4:] == \
-           pack("bytes:4, uintbe:8, bits:24, "
-                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
-                b"hdlr", 0, b"\x00\x00\x00",
-                0, b"meta", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"bzna_inputs\0"
-
-    # MOOV.TRAK.MDIA.MINF.NMHD
-    nmhd = bx_def.NMHD(headers.FullBoxHeader())
-    trak.boxes[-1].boxes[-1].boxes[0] = nmhd
-
-    nmhd.header.type = b"nmhd"
-    nmhd.header.version = (0,)
-    nmhd.header.flags = (b"\x00\x00\x00",)
-
-    nmhd.refresh_box_size()
-
-    assert nmhd.header.type == b"nmhd"
-    assert nmhd.header.box_size == 12
-    assert nmhd.header.version == 0
-    assert nmhd.header.flags == b"\x00\x00\x00"
-
-    assert bytes(nmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24",
-                               12, b"nmhd", 0, b"\x00\x00\x00")
-
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD
-    stsd = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0]
-
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.METT
-    mett = bx_def.METT(headers.BoxHeader())
-
-    mett.header.type = b"mett"
-    mett.data_reference_index = (1,)
-    mett.content_encoding = (b'\0',)
+    mett = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0].boxes[0]
     mett.mime_format = (b'video/h264\0',)
-
     mett.refresh_box_size()
 
     assert mett.header.type == b"mett"
     assert mett.header.box_size == 28
-    assert mett.data_reference_index == 1
-    assert mett.content_encoding == b'\0'
     assert mett.mime_format == b'video/h264\0'
-
-    assert len(mett.boxes) == 0
-
-    stsd.append(mett)
-
-    assert stsd.header.type == b"stsd"
-    assert len(stsd.boxes) == 1
 
     moov.append(trak)
 
     # MOOV.TRAK
     offset += sum(sizes)
     sizes = [23, 23, 23]
-    trak = make_track(creation_time, modification_time,
-                      sizes, [offset,
-                              offset + sum(sizes[0:1]),
-                              offset + sum(sizes[0:2])])
+    trak = make_text_track(creation_time, modification_time, b"bzna_fnames\0",
+                           sizes, [offset,
+                                   offset + sum(sizes[0:1]),
+                                   offset + sum(sizes[0:2])])
 
     # MOOV.TRAK.TKHD
     tkhd = trak.boxes[0]
@@ -442,79 +388,15 @@ def test_mp4_dataset():
                 0x1, 21, 14, 4,
                 b"\x00" * 2)
 
-    # MOOV.TRAK.MDIA.HDLR
-    hdlr = trak.boxes[-1].boxes[1]
-    hdlr.handler_type = (b"text",)
-    hdlr.name = (b"bzna_fnames\0",)
-
-    hdlr.refresh_box_size()
-
-    assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"bzna_fnames\0")
-    assert hdlr.handler_type == b"text"
-    # TODO: validate the use of the name
-    assert hdlr.name == b"bzna_fnames\0"
-
-    assert bytes(hdlr)[4:] == \
-           pack("bytes:4, uintbe:8, bits:24, "
-                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
-                b"hdlr", 0, b"\x00\x00\x00",
-                0, b"text", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"bzna_fnames\0"
-
-    # MOOV.TRAK.MDIA.MINF.NMHD
-    nmhd = bx_def.NMHD(headers.FullBoxHeader())
-    trak.boxes[-1].boxes[-1].boxes[0] = nmhd
-
-    nmhd.header.type = b"nmhd"
-    nmhd.header.version = (0,)
-    nmhd.header.flags = (b"\x00\x00\x00",)
-
-    nmhd.refresh_box_size()
-
-    assert nmhd.header.type == b"nmhd"
-    assert nmhd.header.box_size == 12
-    assert nmhd.header.version == 0
-    assert nmhd.header.flags == b"\x00\x00\x00"
-
-    assert bytes(nmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24",
-                               12, b"nmhd", 0, b"\x00\x00\x00")
-
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD
-    stsd = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0]
-
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD.STXT
-    stxt = bx_def.STXT(headers.BoxHeader())
-
-    stxt.header.type = b"stxt"
-    stxt.data_reference_index = (1,)
-    stxt.content_encoding = (b'\0',)
-    stxt.mime_format = (b'text/plain\0',)
-
-    stxt.refresh_box_size()
-
-    assert stxt.header.type == b"stxt"
-    assert stxt.header.box_size == 28
-    assert stxt.data_reference_index == 1
-    assert stxt.content_encoding == b'\0'
-    assert stxt.mime_format == b'text/plain\0'
-
-    assert len(stxt.boxes) == 0
-
-    stsd.append(stxt)
-
-    assert stsd.header.type == b"stsd"
-    assert len(stsd.boxes) == 1
-
     moov.append(trak)
 
     # MOOV.TRAK
     offset += sum(sizes)
     sizes = [8, 8, 8]
-    trak = make_track(creation_time, modification_time,
-                      sizes, [offset,
-                              offset + sum(sizes[0:1]),
-                              offset + sum(sizes[0:2])])
+    trak = make_text_track(creation_time, modification_time, b"bzna_targets\0",
+                           sizes, [offset,
+                                   offset + sum(sizes[0:1]),
+                                   offset + sum(sizes[0:2])])
 
     # MOOV.TRAK.TKHD
     tkhd = trak.boxes[0]
@@ -585,70 +467,6 @@ def test_mp4_dataset():
                 creation_time, modification_time, 20, 60,
                 0x1, 21, 14, 4,
                 b"\x00" * 2)
-
-    # MOOV.TRAK.MDIA.HDLR
-    hdlr = trak.boxes[-1].boxes[1]
-    hdlr.handler_type = (b"text",)
-    hdlr.name = (b"bzna_targets\0",)
-
-    hdlr.refresh_box_size()
-
-    assert hdlr.header.type == b"hdlr"
-    assert hdlr.header.box_size == 32 + len(b"bzna_targets\0")
-    assert hdlr.handler_type == b"text"
-    # TODO: validate the use of the name
-    assert hdlr.name == b"bzna_targets\0"
-
-    assert bytes(hdlr)[4:] == \
-           pack("bytes:4, uintbe:8, bits:24, "
-                "uintbe:32, bytes:4, bits:32, bits:32, bits:32",
-                b"hdlr", 0, b"\x00\x00\x00",
-                0, b"text", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4).bytes + \
-           b"bzna_targets\0"
-
-    # MOOV.TRAK.MDIA.MINF.NMHD
-    nmhd = bx_def.NMHD(headers.FullBoxHeader())
-    trak.boxes[-1].boxes[-1].boxes[0] = nmhd
-
-    nmhd.header.type = b"nmhd"
-    nmhd.header.version = (0,)
-    nmhd.header.flags = (b"\x00\x00\x00",)
-
-    nmhd.refresh_box_size()
-
-    assert nmhd.header.type == b"nmhd"
-    assert nmhd.header.box_size == 12
-    assert nmhd.header.version == 0
-    assert nmhd.header.flags == b"\x00\x00\x00"
-
-    assert bytes(nmhd) == pack("uintbe:32, bytes:4, uintbe:8, bits:24",
-                               12, b"nmhd", 0, b"\x00\x00\x00")
-
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD
-    stsd = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0]
-
-    # MOOV.TRAK.MDIA.MINF.STBL.STSD.STXT
-    stxt = bx_def.STXT(headers.BoxHeader())
-
-    stxt.header.type = b"stxt"
-    stxt.data_reference_index = (1,)
-    stxt.content_encoding = (b'\0',)
-    stxt.mime_format = (b'text/plain\0',)
-
-    stxt.refresh_box_size()
-
-    assert stxt.header.type == b"stxt"
-    assert stxt.header.box_size == 28
-    assert stxt.data_reference_index == 1
-    assert stxt.content_encoding == b'\0'
-    assert stxt.mime_format == b'text/plain\0'
-
-    assert len(stxt.boxes) == 0
-
-    stsd.append(stxt)
-
-    assert stsd.header.type == b"stsd"
-    assert len(stsd.boxes) == 1
 
     moov.append(trak)
 
