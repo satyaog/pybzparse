@@ -397,6 +397,205 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._next_track_id)
 
 
+# meta boxes
+class ItemLocationBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 6)
+
+        self._offset_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._length_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._base_offset_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._index_size = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._reserved0 = \
+            self._register_field(Field(value_type="uint", size=4))
+
+        self._item_count = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def offset_size(self):
+        return self._offset_size.value
+
+    @offset_size.setter
+    def offset_size(self, value):
+        self._set_field(self._offset_size, *value)
+
+    @property
+    def length_size(self):
+        return self._length_size.value
+
+    @length_size.setter
+    def length_size(self, value):
+        self._set_field(self._length_size, *value)
+
+    @property
+    def base_offset_size(self):
+        return self._base_offset_size.value
+
+    @base_offset_size.setter
+    def base_offset_size(self, value):
+        self._set_field(self._base_offset_size, *value)
+
+    @property
+    def index_size(self):
+        return self._index_size.value
+
+    @index_size.setter
+    def index_size(self, value):
+        self._set_field(self._index_size, *value)
+
+    @property
+    def item_count(self):
+        return self._item_count.value
+
+    @item_count.setter
+    def item_count(self, value):
+        self._set_field(self._item_count, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version < 2:
+            self._item_count.type = "uintbe:16"
+
+        self._read_field(bstr, self._offset_size)
+        self._read_field(bstr, self._length_size)
+        self._read_field(bstr, self._base_offset_size)
+
+        if header.version == 1 or header.version == 2:
+            self._read_field(bstr, self._index_size)
+        else:
+            self._read_field(bstr, self._reserved0)
+
+        self._read_field(bstr, self._item_count)
+
+
+class ItemLocationBoxItemFieldsList(AbstractFieldsList):
+    def __init__(self, base_offset_size):
+        # TODO: do mention that ItemLocationBoxItemFieldsList does not make
+        #  use of super()
+        AbstractFieldsList.__init__(self, 6)
+
+        self._item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._reserved0 = \
+            self._register_field(Field(value_type="uint", size=12))
+        self._construction_method = \
+            self._register_field(Field(value_type="uint", size=4))
+        self._data_reference_index = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._base_offset = \
+            self._register_field(Field(value_type="uintbe", size=base_offset_size * 8))
+        self._extent_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
+
+    @property
+    def item_id(self):
+        return self._item_id.value
+
+    @item_id.setter
+    def item_id(self, value):
+        self._set_field(self._item_id, *value)
+
+    @property
+    def construction_method(self):
+        return self._construction_method.value
+
+    @construction_method.setter
+    def construction_method(self, value):
+        self._set_field(self._construction_method, *value)
+
+    @property
+    def data_reference_index(self):
+        return self._data_reference_index.value
+
+    @data_reference_index.setter
+    def data_reference_index(self, value):
+        self._set_field(self._data_reference_index, *value)
+
+    @property
+    def base_offset(self):
+        return self._base_offset.value
+
+    @base_offset.setter
+    def base_offset(self, value):
+        self._set_field(self._base_offset, *value)
+
+    @property
+    def extent_count(self):
+        return self._extent_count.value
+
+    @extent_count.setter
+    def extent_count(self, value):
+        self._set_field(self._extent_count, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version < 2:
+            self._item_id.type = "uintbe:16"
+
+        self._read_field(bstr, self._item_id)
+
+        if header.version == 1 or header.version == 2:
+            self._read_field(bstr, self._reserved0)
+            self._read_field(bstr, self._construction_method)
+
+        self._read_field(bstr, self._data_reference_index)
+        if self._base_offset.value_size > 0:
+            self._read_field(bstr, self._base_offset)
+
+        self._read_field(bstr, self._extent_count)
+
+
+class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
+    def __init__(self, index_size, offset_size, length_size):
+        # TODO: do mention that ItemLocationBoxItemExtentFieldsList does not
+        #  make use of super()
+        AbstractFieldsList.__init__(self, 3)
+
+        self._extent_index = \
+            self._register_field(Field(value_type="uintbe", size=index_size * 8))
+        self._extent_offset = \
+            self._register_field(Field(value_type="uintbe", size=offset_size * 8))
+        self._extent_length = \
+            self._register_field(Field(value_type="uintbe", size=length_size * 8))
+
+    @property
+    def extent_index(self):
+        return self._extent_index.value
+
+    @extent_index.setter
+    def extent_index(self, value):
+        self._set_field(self._extent_index, *value)
+
+    @property
+    def extent_offset(self):
+        return self._extent_offset.value
+
+    @extent_offset.setter
+    def extent_offset(self, value):
+        self._set_field(self._extent_offset, *value)
+
+    @property
+    def extent_length(self):
+        return self._extent_length.value
+
+    @extent_length.setter
+    def extent_length(self, value):
+        self._set_field(self._extent_length, *value)
+
+    def parse_fields(self, bstr, header):
+        if (header.version == 1 or header.version == 2) and \
+           self._extent_index.value_size > 0:
+            self._read_field(bstr, self._extent_index)
+
+        if self._extent_offset.value_size > 0:
+            self._read_field(bstr, self._extent_offset)
+        if self._extent_length.value_size > 0:
+            self._read_field(bstr, self._extent_length)
+
+
 # trak boxes
 class TrackHeaderBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
@@ -557,6 +756,190 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
                          until_pos=bstr.bitpos + self._width_length)
         self._read_field(bstr, self._height,
                          until_pos=bstr.bitpos + self._height_length)
+
+
+# iref boxes
+class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 3)
+
+        self._from_item_id = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._reference_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._to_item_ids = \
+            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
+
+    @property
+    def from_item_id(self):
+        return self._from_item_id.value
+
+    @from_item_id.setter
+    def from_item_id(self, value):
+        self._set_field(self._from_item_id, *value)
+
+    @property
+    def reference_count(self):
+        return self._reference_count.value
+
+    @reference_count.setter
+    def reference_count(self, value):
+        self._set_field(self._reference_count, *value)
+
+    @property
+    def to_item_ids(self):
+        return self._to_item_ids.value
+
+    @to_item_ids.setter
+    def to_item_ids(self, value):
+        self._set_field(self._to_item_ids, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._from_item_id)
+        self._read_field(bstr, self._reference_count)
+        self._read_field(bstr, self._to_item_ids,
+                         until_pos=bstr.bitpos + self._reference_count.value * 16)
+
+
+class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 3)
+
+        self._from_item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._reference_count = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._to_item_ids = \
+            self._register_field(Field(value_type="uintbe", size=32, is_list=True))
+
+    @property
+    def from_item_id(self):
+        return self._from_item_id.value
+
+    @from_item_id.setter
+    def from_item_id(self, value):
+        self._set_field(self._from_item_id, *value)
+
+    @property
+    def reference_count(self):
+        return self._reference_count.value
+
+    @reference_count.setter
+    def reference_count(self, value):
+        self._set_field(self._reference_count, *value)
+
+    @property
+    def to_item_ids(self):
+        return self._to_item_ids.value
+
+    @to_item_ids.setter
+    def to_item_ids(self, value):
+        self._set_field(self._to_item_ids, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._from_item_id)
+        self._read_field(bstr, self._reference_count)
+        self._read_field(bstr, self._to_item_ids,
+                         until_pos=bstr.bitpos + self._reference_count.value * 32)
+
+
+# iprp boxes
+class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        self._read_field(bstr, self._entry_count)
+
+
+class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._item_id = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._association_count = \
+            self._register_field(Field(value_type="uintbe", size=8))
+
+    @property
+    def item_id(self):
+        return self._item_id.value
+
+    @item_id.setter
+    def item_id(self, value):
+        self._set_field(self._item_id, *value)
+
+    @property
+    def association_count(self):
+        return self._association_count.value
+
+    @association_count.setter
+    def association_count(self, value):
+        self._set_field(self._association_count, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version < 1:
+            self._item_id.type = "uintbe:16"
+
+        self._read_field(bstr, self._item_id)
+        self._read_field(bstr, self._association_count)
+
+
+class ItemPropertyAssociationBoxEntryAssociationsFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 3)
+
+        self._essential = \
+            self._register_field(Field(value_type="bits", size=1))
+        self._property_index_8b = \
+            self._register_field(Field(value_type="uint", size=8))
+        self._property_index_7b = \
+            self._register_field(Field(value_type="uint", size=7))
+        self._property_index_cache = None
+
+    @property
+    def essential(self):
+        return self._essential.value.bool
+
+    @essential.setter
+    def essential(self, value):
+        self._set_field(self._essential, *value)
+
+    @property
+    def property_index(self):
+        return self._property_index_cache
+
+    @property_index.setter
+    def property_index(self, value):
+        value, value_type = value
+        # TODO: validate that this writing is correct
+        self._set_field(self._property_index_8b, value & 255)
+        self._set_field(self._property_index_7b, (value & 127 << 8) >> 8)
+        self._property_index_cache = value
+
+    def parse_fields(self, bstr, header):
+        self._read_field(bstr, self._essential)
+        if int.from_bytes(header.flags, "big") & 1:
+            # TODO: validate that this parsing is correct
+            self._read_field(bstr, self._property_index_8b)
+            self._read_field(bstr, self._property_index_7b)
+            self._property_index_cache = self._property_index_8b.value + \
+                self._property_index_7b.value << 8
+        else:
+            self._read_field(bstr, self._property_index_7b)
+            self._property_index_cache = self._property_index_7b.value
 
 
 # mdia boxes
@@ -1110,6 +1493,71 @@ class ChunkOffsetBoxEntryFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._chunk_offset)
 
 
+# dinf boxes
+class DataReferenceBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+        # initialize with empty value
+        self._set_field(self._entry_count, 0)
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._entry_count)
+
+
+class PrimaryItemBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._item_id = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def item_id(self):
+        return self._item_id.value
+
+    @item_id.setter
+    def item_id(self, value):
+        self._set_field(self._item_id, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version == 0:
+            self._item_id.type = "uintbe:16"
+
+        self._read_field(bstr, self._item_id)
+
+
+class ItemInformationBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 1)
+
+        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
+
+    @property
+    def entry_count(self):
+        return self._entry_count.value
+
+    @entry_count.setter
+    def entry_count(self, value):
+        self._set_field(self._entry_count, *value)
+
+    def parse_fields(self, bstr, header):
+        if header.version == 0:
+            self._entry_count.type = "uintbe:16"
+
+        self._read_field(bstr, self._entry_count)
+
+
 # stsd boxes
 class SampleEntryBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
@@ -1339,202 +1787,6 @@ class TextMetaDataSampleEntryBoxFieldsList(MetaDataSampleEntryBoxFieldsList):
         self._read_field(bstr, self._mime_format)
 
 
-class PixelAspectRatioBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 8)
-
-        self._h_spacing = \
-            self._register_field(Field(value_type="uintbe", size=32))
-        self._v_spacing = \
-            self._register_field(Field(value_type="uintbe", size=32))
-
-    @property
-    def h_spacing(self):
-        return self._h_spacing.value
-
-    @h_spacing.setter
-    def h_spacing(self, value):
-        self._set_field(self._h_spacing, *value)
-
-    @property
-    def v_spacing(self):
-        return self._v_spacing.value
-
-    @v_spacing.setter
-    def v_spacing(self, value):
-        self._set_field(self._v_spacing, *value)
-
-    def parse_fields(self, bstr, header):
-        del header
-        self._read_field(bstr, self._h_spacing)
-        self._read_field(bstr, self._v_spacing)
-
-
-class CleanApertureBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 8)
-
-        self._clean_aperture_width_n = \
-            self._register_field(Field(value_type="uintbe", size=32))
-        self._clean_aperture_width_d = \
-            self._register_field(Field(value_type="uintbe", size=32))
-
-        self._clean_aperture_height_n = \
-            self._register_field(Field(value_type="uintbe", size=32))
-        self._clean_aperture_height_d = \
-            self._register_field(Field(value_type="uintbe", size=32))
-
-        self._horiz_off_n = \
-            self._register_field(Field(value_type="intbe", size=32))
-        self._horiz_off_d = \
-            self._register_field(Field(value_type="uintbe", size=32))
-
-        self._vert_off_n = \
-            self._register_field(Field(value_type="intbe", size=32))
-        self._vert_off_d = \
-            self._register_field(Field(value_type="uintbe", size=32))
-
-    @property
-    def clean_aperture_width_n(self):
-        return self._clean_aperture_width_n.value
-
-    @clean_aperture_width_n.setter
-    def clean_aperture_width_n(self, value):
-        self._set_field(self._clean_aperture_width_n, *value)
-
-    @property
-    def clean_aperture_width_d(self):
-        return self._clean_aperture_width_d.value
-
-    @clean_aperture_width_d.setter
-    def clean_aperture_width_d(self, value):
-        self._set_field(self._clean_aperture_width_d, *value)
-
-    @property
-    def clean_aperture_height_n(self):
-        return self._clean_aperture_height_n.value
-
-    @clean_aperture_height_n.setter
-    def clean_aperture_height_n(self, value):
-        self._set_field(self._clean_aperture_height_n, *value)
-
-    @property
-    def clean_aperture_height_d(self):
-        return self._clean_aperture_height_d.value
-
-    @clean_aperture_height_d.setter
-    def clean_aperture_height_d(self, value):
-        self._set_field(self._clean_aperture_height_d, *value)
-
-    @property
-    def horiz_off_n(self):
-        return self._horiz_off_n.value
-
-    @horiz_off_n.setter
-    def horiz_off_n(self, value):
-        self._set_field(self._horiz_off_n, *value)
-
-    @property
-    def horiz_off_d(self):
-        return self._horiz_off_d.value
-
-    @horiz_off_d.setter
-    def horiz_off_d(self, value):
-        self._set_field(self._horiz_off_d, *value)
-
-    @property
-    def vert_off_n(self):
-        return self._vert_off_n.value
-
-    @vert_off_n.setter
-    def vert_off_n(self, value):
-        self._set_field(self._vert_off_n, *value)
-
-    @property
-    def vert_off_d(self):
-        return self._vert_off_d.value
-
-    @vert_off_d.setter
-    def vert_off_d(self, value):
-        self._set_field(self._vert_off_d, *value)
-
-    def parse_fields(self, bstr, header):
-        del header
-        self._read_field(bstr, self._clean_aperture_width_n)
-        self._read_field(bstr, self._clean_aperture_width_d)
-        self._read_field(bstr, self._clean_aperture_height_n)
-        self._read_field(bstr, self._clean_aperture_height_d)
-        self._read_field(bstr, self._horiz_off_n)
-        self._read_field(bstr, self._horiz_off_d)
-        self._read_field(bstr, self._vert_off_n)
-        self._read_field(bstr, self._vert_off_d)
-
-
-# dinf boxes
-class DataReferenceBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 1)
-
-        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
-
-        # initialize with empty value
-        self._set_field(self._entry_count, 0)
-
-    @property
-    def entry_count(self):
-        return self._entry_count.value
-
-    @entry_count.setter
-    def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
-
-    def parse_fields(self, bstr, header):
-        del header
-        self._read_field(bstr, self._entry_count)
-
-
-class PrimaryItemBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 1)
-
-        self._item_id = self._register_field(Field(value_type="uintbe", size=32))
-
-    @property
-    def item_id(self):
-        return self._item_id.value
-
-    @item_id.setter
-    def item_id(self, value):
-        self._set_field(self._item_id, *value)
-
-    def parse_fields(self, bstr, header):
-        if header.version == 0:
-            self._item_id.type = "uintbe:16"
-
-        self._read_field(bstr, self._item_id)
-
-
-class ItemInformationBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 1)
-
-        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
-
-    @property
-    def entry_count(self):
-        return self._entry_count.value
-
-    @entry_count.setter
-    def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
-
-    def parse_fields(self, bstr, header):
-        if header.version == 0:
-            self._entry_count.type = "uintbe:16"
-
-        self._read_field(bstr, self._entry_count)
-
-
 # dref boxes
 class DataEntryUrlBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
@@ -1718,384 +1970,133 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
                 pass
 
 
-# meta boxes
-class ItemLocationBoxFieldsList(AbstractFieldsList):
+# avc1 boxes
+class PixelAspectRatioBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
-        super().__init__(length + 6)
+        super().__init__(length + 8)
 
-        self._offset_size = \
-            self._register_field(Field(value_type="uint", size=4))
-        self._length_size = \
-            self._register_field(Field(value_type="uint", size=4))
-        self._base_offset_size = \
-            self._register_field(Field(value_type="uint", size=4))
-        self._index_size = \
-            self._register_field(Field(value_type="uint", size=4))
-        self._reserved0 = \
-            self._register_field(Field(value_type="uint", size=4))
-
-        self._item_count = \
+        self._h_spacing = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._v_spacing = \
             self._register_field(Field(value_type="uintbe", size=32))
 
     @property
-    def offset_size(self):
-        return self._offset_size.value
+    def h_spacing(self):
+        return self._h_spacing.value
 
-    @offset_size.setter
-    def offset_size(self, value):
-        self._set_field(self._offset_size, *value)
-
-    @property
-    def length_size(self):
-        return self._length_size.value
-
-    @length_size.setter
-    def length_size(self, value):
-        self._set_field(self._length_size, *value)
+    @h_spacing.setter
+    def h_spacing(self, value):
+        self._set_field(self._h_spacing, *value)
 
     @property
-    def base_offset_size(self):
-        return self._base_offset_size.value
+    def v_spacing(self):
+        return self._v_spacing.value
 
-    @base_offset_size.setter
-    def base_offset_size(self, value):
-        self._set_field(self._base_offset_size, *value)
-
-    @property
-    def index_size(self):
-        return self._index_size.value
-
-    @index_size.setter
-    def index_size(self, value):
-        self._set_field(self._index_size, *value)
-
-    @property
-    def item_count(self):
-        return self._item_count.value
-
-    @item_count.setter
-    def item_count(self, value):
-        self._set_field(self._item_count, *value)
-
-    def parse_fields(self, bstr, header):
-        if header.version < 2:
-            self._item_count.type = "uintbe:16"
-
-        self._read_field(bstr, self._offset_size)
-        self._read_field(bstr, self._length_size)
-        self._read_field(bstr, self._base_offset_size)
-
-        if header.version == 1 or header.version == 2:
-            self._read_field(bstr, self._index_size)
-        else:
-            self._read_field(bstr, self._reserved0)
-
-        self._read_field(bstr, self._item_count)
-
-
-class ItemLocationBoxItemFieldsList(AbstractFieldsList):
-    def __init__(self, base_offset_size):
-        # TODO: do mention that ItemLocationBoxItemFieldsList does not make
-        #  use of super()
-        AbstractFieldsList.__init__(self, 6)
-
-        self._item_id = \
-            self._register_field(Field(value_type="uintbe", size=32))
-        self._reserved0 = \
-            self._register_field(Field(value_type="uint", size=12))
-        self._construction_method = \
-            self._register_field(Field(value_type="uint", size=4))
-        self._data_reference_index = \
-            self._register_field(Field(value_type="uintbe", size=16))
-        self._base_offset = \
-            self._register_field(Field(value_type="uintbe", size=base_offset_size * 8))
-        self._extent_count = \
-            self._register_field(Field(value_type="uintbe", size=16))
-
-    @property
-    def item_id(self):
-        return self._item_id.value
-
-    @item_id.setter
-    def item_id(self, value):
-        self._set_field(self._item_id, *value)
-
-    @property
-    def construction_method(self):
-        return self._construction_method.value
-
-    @construction_method.setter
-    def construction_method(self, value):
-        self._set_field(self._construction_method, *value)
-
-    @property
-    def data_reference_index(self):
-        return self._data_reference_index.value
-
-    @data_reference_index.setter
-    def data_reference_index(self, value):
-        self._set_field(self._data_reference_index, *value)
-
-    @property
-    def base_offset(self):
-        return self._base_offset.value
-
-    @base_offset.setter
-    def base_offset(self, value):
-        self._set_field(self._base_offset, *value)
-
-    @property
-    def extent_count(self):
-        return self._extent_count.value
-
-    @extent_count.setter
-    def extent_count(self, value):
-        self._set_field(self._extent_count, *value)
-
-    def parse_fields(self, bstr, header):
-        if header.version < 2:
-            self._item_id.type = "uintbe:16"
-
-        self._read_field(bstr, self._item_id)
-
-        if header.version == 1 or header.version == 2:
-            self._read_field(bstr, self._reserved0)
-            self._read_field(bstr, self._construction_method)
-
-        self._read_field(bstr, self._data_reference_index)
-        if self._base_offset.value_size > 0:
-            self._read_field(bstr, self._base_offset)
-
-        self._read_field(bstr, self._extent_count)
-
-
-class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
-    def __init__(self, index_size, offset_size, length_size):
-        # TODO: do mention that ItemLocationBoxItemExtentFieldsList does not
-        #  make use of super()
-        AbstractFieldsList.__init__(self, 3)
-
-        self._extent_index = \
-            self._register_field(Field(value_type="uintbe", size=index_size * 8))
-        self._extent_offset = \
-            self._register_field(Field(value_type="uintbe", size=offset_size * 8))
-        self._extent_length = \
-            self._register_field(Field(value_type="uintbe", size=length_size * 8))
-
-    @property
-    def extent_index(self):
-        return self._extent_index.value
-
-    @extent_index.setter
-    def extent_index(self, value):
-        self._set_field(self._extent_index, *value)
-
-    @property
-    def extent_offset(self):
-        return self._extent_offset.value
-
-    @extent_offset.setter
-    def extent_offset(self, value):
-        self._set_field(self._extent_offset, *value)
-
-    @property
-    def extent_length(self):
-        return self._extent_length.value
-
-    @extent_length.setter
-    def extent_length(self, value):
-        self._set_field(self._extent_length, *value)
-
-    def parse_fields(self, bstr, header):
-        if (header.version == 1 or header.version == 2) and \
-           self._extent_index.value_size > 0:
-            self._read_field(bstr, self._extent_index)
-
-        if self._extent_offset.value_size > 0:
-            self._read_field(bstr, self._extent_offset)
-        if self._extent_length.value_size > 0:
-            self._read_field(bstr, self._extent_length)
-
-
-# iref boxes
-class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 3)
-
-        self._from_item_id = \
-            self._register_field(Field(value_type="uintbe", size=16))
-        self._reference_count = \
-            self._register_field(Field(value_type="uintbe", size=16))
-        self._to_item_ids = \
-            self._register_field(Field(value_type="uintbe", size=16, is_list=True))
-
-    @property
-    def from_item_id(self):
-        return self._from_item_id.value
-
-    @from_item_id.setter
-    def from_item_id(self, value):
-        self._set_field(self._from_item_id, *value)
-
-    @property
-    def reference_count(self):
-        return self._reference_count.value
-
-    @reference_count.setter
-    def reference_count(self, value):
-        self._set_field(self._reference_count, *value)
-
-    @property
-    def to_item_ids(self):
-        return self._to_item_ids.value
-
-    @to_item_ids.setter
-    def to_item_ids(self, value):
-        self._set_field(self._to_item_ids, *value)
+    @v_spacing.setter
+    def v_spacing(self, value):
+        self._set_field(self._v_spacing, *value)
 
     def parse_fields(self, bstr, header):
         del header
-        self._read_field(bstr, self._from_item_id)
-        self._read_field(bstr, self._reference_count)
-        self._read_field(bstr, self._to_item_ids,
-                         until_pos=bstr.bitpos + self._reference_count.value * 16)
+        self._read_field(bstr, self._h_spacing)
+        self._read_field(bstr, self._v_spacing)
 
 
-class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
+class CleanApertureBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
-        super().__init__(length + 3)
+        super().__init__(length + 8)
 
-        self._from_item_id = \
+        self._clean_aperture_width_n = \
             self._register_field(Field(value_type="uintbe", size=32))
-        self._reference_count = \
-            self._register_field(Field(value_type="uintbe", size=16))
-        self._to_item_ids = \
-            self._register_field(Field(value_type="uintbe", size=32, is_list=True))
+        self._clean_aperture_width_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+        self._clean_aperture_height_n = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._clean_aperture_height_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+        self._horiz_off_n = \
+            self._register_field(Field(value_type="intbe", size=32))
+        self._horiz_off_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
+
+        self._vert_off_n = \
+            self._register_field(Field(value_type="intbe", size=32))
+        self._vert_off_d = \
+            self._register_field(Field(value_type="uintbe", size=32))
 
     @property
-    def from_item_id(self):
-        return self._from_item_id.value
+    def clean_aperture_width_n(self):
+        return self._clean_aperture_width_n.value
 
-    @from_item_id.setter
-    def from_item_id(self, value):
-        self._set_field(self._from_item_id, *value)
-
-    @property
-    def reference_count(self):
-        return self._reference_count.value
-
-    @reference_count.setter
-    def reference_count(self, value):
-        self._set_field(self._reference_count, *value)
+    @clean_aperture_width_n.setter
+    def clean_aperture_width_n(self, value):
+        self._set_field(self._clean_aperture_width_n, *value)
 
     @property
-    def to_item_ids(self):
-        return self._to_item_ids.value
+    def clean_aperture_width_d(self):
+        return self._clean_aperture_width_d.value
 
-    @to_item_ids.setter
-    def to_item_ids(self, value):
-        self._set_field(self._to_item_ids, *value)
+    @clean_aperture_width_d.setter
+    def clean_aperture_width_d(self, value):
+        self._set_field(self._clean_aperture_width_d, *value)
+
+    @property
+    def clean_aperture_height_n(self):
+        return self._clean_aperture_height_n.value
+
+    @clean_aperture_height_n.setter
+    def clean_aperture_height_n(self, value):
+        self._set_field(self._clean_aperture_height_n, *value)
+
+    @property
+    def clean_aperture_height_d(self):
+        return self._clean_aperture_height_d.value
+
+    @clean_aperture_height_d.setter
+    def clean_aperture_height_d(self, value):
+        self._set_field(self._clean_aperture_height_d, *value)
+
+    @property
+    def horiz_off_n(self):
+        return self._horiz_off_n.value
+
+    @horiz_off_n.setter
+    def horiz_off_n(self, value):
+        self._set_field(self._horiz_off_n, *value)
+
+    @property
+    def horiz_off_d(self):
+        return self._horiz_off_d.value
+
+    @horiz_off_d.setter
+    def horiz_off_d(self, value):
+        self._set_field(self._horiz_off_d, *value)
+
+    @property
+    def vert_off_n(self):
+        return self._vert_off_n.value
+
+    @vert_off_n.setter
+    def vert_off_n(self, value):
+        self._set_field(self._vert_off_n, *value)
+
+    @property
+    def vert_off_d(self):
+        return self._vert_off_d.value
+
+    @vert_off_d.setter
+    def vert_off_d(self, value):
+        self._set_field(self._vert_off_d, *value)
 
     def parse_fields(self, bstr, header):
         del header
-        self._read_field(bstr, self._from_item_id)
-        self._read_field(bstr, self._reference_count)
-        self._read_field(bstr, self._to_item_ids,
-                         until_pos=bstr.bitpos + self._reference_count.value * 32)
-
-
-# iprp boxes
-class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 1)
-
-        self._entry_count = self._register_field(Field(value_type="uintbe", size=32))
-
-    @property
-    def entry_count(self):
-        return self._entry_count.value
-
-    @entry_count.setter
-    def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
-
-    def parse_fields(self, bstr, header):
-        self._read_field(bstr, self._entry_count)
-
-
-class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 2)
-
-        self._item_id = \
-            self._register_field(Field(value_type="uintbe", size=32))
-        self._association_count = \
-            self._register_field(Field(value_type="uintbe", size=8))
-
-    @property
-    def item_id(self):
-        return self._item_id.value
-
-    @item_id.setter
-    def item_id(self, value):
-        self._set_field(self._item_id, *value)
-
-    @property
-    def association_count(self):
-        return self._association_count.value
-
-    @association_count.setter
-    def association_count(self, value):
-        self._set_field(self._association_count, *value)
-
-    def parse_fields(self, bstr, header):
-        if header.version < 1:
-            self._item_id.type = "uintbe:16"
-
-        self._read_field(bstr, self._item_id)
-        self._read_field(bstr, self._association_count)
-
-
-class ItemPropertyAssociationBoxEntryAssociationsFieldsList(AbstractFieldsList):
-    def __init__(self, length=0):
-        super().__init__(length + 3)
-
-        self._essential = \
-            self._register_field(Field(value_type="bits", size=1))
-        self._property_index_8b = \
-            self._register_field(Field(value_type="uint", size=8))
-        self._property_index_7b = \
-            self._register_field(Field(value_type="uint", size=7))
-        self._property_index_cache = None
-
-    @property
-    def essential(self):
-        return self._essential.value.bool
-
-    @essential.setter
-    def essential(self, value):
-        self._set_field(self._essential, *value)
-
-    @property
-    def property_index(self):
-        return self._property_index_cache
-
-    @property_index.setter
-    def property_index(self, value):
-        value, value_type = value
-        # TODO: validate that this writing is correct
-        self._set_field(self._property_index_8b, value & 255)
-        self._set_field(self._property_index_7b, (value & 127 << 8) >> 8)
-        self._property_index_cache = value
-
-    def parse_fields(self, bstr, header):
-        self._read_field(bstr, self._essential)
-        if int.from_bytes(header.flags, "big") & 1:
-            # TODO: validate that this parsing is correct
-            self._read_field(bstr, self._property_index_8b)
-            self._read_field(bstr, self._property_index_7b)
-            self._property_index_cache = self._property_index_8b.value + \
-                self._property_index_7b.value << 8
-        else:
-            self._read_field(bstr, self._property_index_7b)
-            self._property_index_cache = self._property_index_7b.value
+        self._read_field(bstr, self._clean_aperture_width_n)
+        self._read_field(bstr, self._clean_aperture_width_d)
+        self._read_field(bstr, self._clean_aperture_height_n)
+        self._read_field(bstr, self._clean_aperture_height_d)
+        self._read_field(bstr, self._horiz_off_n)
+        self._read_field(bstr, self._horiz_off_d)
+        self._read_field(bstr, self._vert_off_n)
+        self._read_field(bstr, self._vert_off_d)

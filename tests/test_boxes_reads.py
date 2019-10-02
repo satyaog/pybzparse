@@ -357,44 +357,6 @@ def test_nmhd_box():
     assert bytes(box) == bs.bytes
 
 
-def test_dref_box():
-    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
-              16, b"dref", 0, b"\x00\x00\x00", 1)
-
-    box_header = Parser.parse_header(bs)
-    dref = bx_def.DREF.parse_box(bs, box_header)
-    box = dref
-
-    assert box.header.start_pos == 0
-    assert box.header.type == b"dref"
-    assert box.header.box_size == 16
-    assert box.header.version == 0
-    assert box.header.flags == b"\x00\x00\x00"
-
-    assert box.entry_count == 1
-
-    assert bytes(box) == bs.bytes
-
-
-def test_url__box():
-    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
-              12, b"url ", 0, b"\x00\x00\x01")
-
-    box_header = Parser.parse_header(bs)
-    url_ = bx_def.URL_.parse_box(bs, box_header)
-    box = url_
-
-    assert box.header.start_pos == 0
-    assert box.header.type == b"url "
-    assert box.header.box_size == 12
-    assert box.header.version == 0
-    assert box.header.flags == b"\x00\x00\x01"
-
-    assert box.location is None
-
-    assert bytes(box) == bs.bytes
-
-
 def test_stsd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
               16, b"stsd", 0, b"\x00\x00\x00", 0)
@@ -545,6 +507,25 @@ def test_stco_box():
     box.load(bs)
     assert len(box.entries) == 1
     assert box.entries[0].chunk_offset == 1
+
+    assert bytes(box) == bs.bytes
+
+
+def test_dref_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
+              16, b"dref", 0, b"\x00\x00\x00", 1)
+
+    box_header = Parser.parse_header(bs)
+    dref = bx_def.DREF.parse_box(bs, box_header)
+    box = dref
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"dref"
+    assert box.header.box_size == 16
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 1
 
     assert bytes(box) == bs.bytes
 
@@ -702,6 +683,25 @@ def test_mett_box():
     assert box.mime_format == b'image/heif\0'
 
     assert len(box.boxes) == 0
+
+    assert bytes(box) == bs.bytes
+
+
+def test_url__box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
+              12, b"url ", 0, b"\x00\x00\x01")
+
+    box_header = Parser.parse_header(bs)
+    url_ = bx_def.URL_.parse_box(bs, box_header)
+    box = url_
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"url "
+    assert box.header.box_size == 12
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x01"
+
+    assert box.location is None
 
     assert bytes(box) == bs.bytes
 
