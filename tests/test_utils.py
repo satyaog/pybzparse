@@ -468,7 +468,7 @@ def test_make_vide_trak():
     assert avc1.frame_count == 1
     assert avc1.compressorname == b'\0' * 32
     assert avc1.depth == 24
-    assert len(avc1.boxes) == 1
+    assert len(avc1.boxes) == 2
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
     avcC = avc1.boxes[0]
@@ -480,3 +480,12 @@ def test_make_vide_trak():
                            b'\x10\x02\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00' \
                            b'\x01\x00\x00\x03\x00\x02\x04\x01\x00\x07h\xee\x01' \
                            b'\x9cL\x84\xc0'
+
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
+    pasp = avc1.boxes[1]
+    pasp.refresh_box_size()
+
+    assert pasp.header.type == b"pasp"
+    assert pasp.header.box_size == 16
+    assert pasp.h_spacing == 1
+    assert pasp.v_spacing == 1

@@ -381,6 +381,14 @@ def make_vide_trak(creation_time, modification_time, label,
 
     avc1.append(avcC)
 
+    # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
+    pasp = bx_def.PASP(headers.BoxHeader())
+    pasp.header.type = b"pasp"
+    pasp.h_spacing = (1,)
+    pasp.v_spacing = (1,)
+
+    avc1.append(pasp)
+
     stsd.append(avc1)
 
     return trak
