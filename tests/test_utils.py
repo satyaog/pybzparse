@@ -15,16 +15,56 @@ def test_from_mp4_date():
     assert utils.from_mp4_time(0) == datetime(1904, 1, 1, 0, 0)
 
 
-def test_make_track():
+def test_make_mvhd():
+    creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
+    modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
+
+    mvhd = utils.make_mvhd(creation_time, modification_time, 3)
+    mvhd.refresh_box_size()
+
+    assert mvhd.header.type == b"mvhd"
+    assert mvhd.header.box_size == 120
+    assert mvhd.header.version == 1
+    assert mvhd.header.flags == b"\x00\x00\x00"
+
+    assert mvhd.creation_time == creation_time
+    assert mvhd.modification_time == modification_time
+    assert mvhd.timescale == 20
+    assert mvhd.duration == 60
+
+    assert mvhd.rate == [1, 0]
+    assert mvhd.volume == [0, 0]
+
+    assert mvhd.matrix == [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+    assert mvhd.pre_defined == [b"\x00" * 4] * 6
+
+    assert mvhd.next_track_id == 1
+
+    assert bytes(mvhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, uintbe:64, "
+                "uintbe:16, uintbe:16, uintbe:8, uintbe:8, "
+                "bits:16, bits:32, bits:32, "
+                "uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
+                "bits:32, bits:32, bits:32, bits:32, bits:32, bits:32, "
+                "uintbe:32",
+                120, b"mvhd", 1, b"\x00\x00\x00",
+                creation_time, modification_time, 20, 60,
+                1, 0, 0, 0,
+                b"\x00" * 2, b"\x00" * 4, b"\x00" * 4,
+                65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
+                b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4,
+                1)
+
+
+def test_make_trak():
     creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
     modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
 
     samples_sizes = [198297, 127477, 192476]
-    samples_offsets = [10,
-                       10 + sum(samples_sizes[0:1]),
-                       10 + sum(samples_sizes[0:2])]
-    trak = utils.make_track(creation_time, modification_time,
-                            samples_sizes, samples_offsets)
+    samples_offset = 10
+    trak = utils.make_trak(creation_time, modification_time,
+                           samples_sizes, samples_offset)
 
     assert trak.header.type == b"trak"
     assert len(trak.boxes) == 2
@@ -39,7 +79,7 @@ def test_make_track():
     assert tkhd.creation_time == creation_time
     assert tkhd.modification_time == modification_time
     assert tkhd.track_id == -1
-    assert tkhd.duration == -1
+    assert tkhd.duration == 60
 
     assert tkhd.layer == 0
     assert tkhd.alternate_group == 0
@@ -60,18 +100,30 @@ def test_make_track():
 
     # MOOV.TRAK.MDIA.MDHD
     mdhd = mdia.boxes[0]
+    mdhd.refresh_box_size()
 
     assert mdhd.header.type == b"mdhd"
+    assert mdhd.header.box_size == 44
     assert mdhd.header.version == 1
     assert mdhd.header.flags == b"\x00\x00\x00"
 
     assert mdhd.creation_time == creation_time
     assert mdhd.modification_time == modification_time
-    assert mdhd.timescale == -1
-    assert mdhd.duration == -1
+    assert mdhd.timescale == 20
+    assert mdhd.duration == 60
 
     assert mdhd.language == [21, 14, 4]
     assert mdhd.pre_defined == 0
+
+    assert bytes(mdhd) == \
+           pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                "uintbe:64, uintbe:64, uintbe:32, uintbe:64, "
+                "bits:1, uint:5, uint:5, uint:5, "
+                "bits:16",
+                44, b"mdhd", 1, b"\x00\x00\x00",
+                creation_time, modification_time, 20, 60,
+                0x1, 21, 14, 4,
+                b"\x00" * 2)
 
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
@@ -227,16 +279,18 @@ def test_make_track():
     assert stco.header.flags == b"\x00\x00\x00"
     assert stco.entry_count == 3
     assert len(stco.entries) == 3
-    assert stco.entries[0].chunk_offset == samples_offsets[0]
-    assert stco.entries[1].chunk_offset == samples_offsets[1]
-    assert stco.entries[2].chunk_offset == samples_offsets[2]
+    assert stco.entries[0].chunk_offset == samples_offset
+    assert stco.entries[1].chunk_offset == samples_offset + sum(samples_sizes[0:1])
+    assert stco.entries[2].chunk_offset == samples_offset + sum(samples_sizes[0:2])
 
     assert bytes(stco) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
                                "uintbe:32, "
                                "uintbe:32, uintbe:32, uintbe:32",
                                28, b"stco", 0, b"\x00\x00\x00",
                                3,
-                               samples_offsets[0], samples_offsets[1], samples_offsets[2])
+                               samples_offset,
+                               samples_offset + sum(samples_sizes[0:1]),
+                               samples_offset + sum(samples_sizes[0:2]))
 
 
 def test_make_meta_trak():
@@ -244,11 +298,9 @@ def test_make_meta_trak():
     modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
 
     samples_sizes = [198297, 127477, 192476]
-    samples_offsets = [10,
-                       10 + sum(samples_sizes[0:1]),
-                       10 + sum(samples_sizes[0:2])]
-    trak = utils.make_meta_track(creation_time, modification_time, b"bzna_inputs\0",
-                                 samples_sizes, samples_offsets)
+    samples_offset = 10
+    trak = utils.make_meta_trak(creation_time, modification_time, b"bzna_inputs\0",
+                                samples_sizes, samples_offset)
 
     # MOOV.TRAK.MDIA.HDLR
     hdlr = trak.boxes[-1].boxes[1]
@@ -303,11 +355,9 @@ def test_make_text_trak():
     modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
 
     samples_sizes = [198297, 127477, 192476]
-    samples_offsets = [10,
-                       10 + sum(samples_sizes[0:1]),
-                       10 + sum(samples_sizes[0:2])]
-    trak = utils.make_text_track(creation_time, modification_time, b"bzna_fnames\0",
-                                 samples_sizes, samples_offsets)
+    samples_offset = 10
+    trak = utils.make_text_trak(creation_time, modification_time, b"bzna_fnames\0",
+                                samples_sizes, samples_offset)
 
     # MOOV.TRAK.MDIA.HDLR
     hdlr = trak.boxes[-1].boxes[1]
@@ -362,11 +412,9 @@ def test_make_vide_trak():
     modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
 
     samples_sizes = [198297, 127477, 192476]
-    samples_offsets = [10,
-                       10 + sum(samples_sizes[0:1]),
-                       10 + sum(samples_sizes[0:2])]
-    trak = utils.make_vide_track(creation_time, modification_time, b"VideoHandler\0",
-                                 samples_sizes, samples_offsets)
+    samples_offset = 10
+    trak = utils.make_vide_trak(creation_time, modification_time, b"VideoHandler\0",
+                                samples_sizes, samples_offset)
 
     # MOOV.TRAK.MDIA.HDLR
     hdlr = trak.boxes[-1].boxes[1]
@@ -415,8 +463,8 @@ def test_make_vide_trak():
     assert avc1.data_reference_index == 1
     assert avc1.width == -1
     assert avc1.height == -1
-    assert avc1.horizresolution == [-1, 0]
-    assert avc1.vertresolution == [-1, 0]
+    assert avc1.horizresolution == [72, 0]
+    assert avc1.vertresolution == [72, 0]
     assert avc1.frame_count == 1
     assert avc1.compressorname == b'\0' * 32
     assert avc1.depth == 24
@@ -432,12 +480,3 @@ def test_make_vide_trak():
                            b'\x10\x02\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00' \
                            b'\x01\x00\x00\x03\x00\x02\x04\x01\x00\x07h\xee\x01' \
                            b'\x9cL\x84\xc0'
-
-    # # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
-    # pasp = avc1.boxes[1]
-    # pasp.refresh_box_size()
-    #
-    # assert pasp.header.type == b"pasp"
-    # assert pasp.header.box_size == 16
-    # assert pasp.h_spacing == 150
-    # assert pasp.v_spacing == 157

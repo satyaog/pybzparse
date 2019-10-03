@@ -14,7 +14,38 @@ def from_mp4_time(seconds):
     return BEGIN + timedelta(0, seconds)
 
 
-def make_track(creation_time, modification_time, samples_sizes, samples_offsets):
+def make_mvhd(creation_time, modification_time, samples_count):
+    # MOOV.MVHD
+    mvhd = bx_def.MVHD(headers.FullBoxHeader())
+
+    mvhd.header.type = b"mvhd"
+    mvhd.header.version = (1,)
+    mvhd.header.flags = (b"\x00\x00\x00",)
+
+    mvhd.creation_time = (creation_time,)
+    mvhd.modification_time = (modification_time,)
+    # TODO: 20 units / second (does not necessary means 20 img / sec)
+    mvhd.timescale = (20,)
+    # total duration in the indicated timescale
+    mvhd.duration = (20 * samples_count,)
+
+    # prefered play rate (1x, 2x, 1/2x, ...)
+    mvhd.rate = ([1, 0],)
+    # prefered volume (1 is full volume)
+    mvhd.volume = ([0, 0],)
+
+    # TODO: validate matrix (and check if those are 16.16 floats)
+    mvhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+    # TODO: check what pre_defined is
+    mvhd.pre_defined = ([b"\x00" * 4] * 6,)
+
+    # == total number of tracks
+    mvhd.next_track_id = (1,)
+
+    return mvhd
+
+
+def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     # MOOV.TRAK
     trak = bx_def.TRAK(headers.BoxHeader())
     trak.header.type = b"trak"
@@ -29,7 +60,7 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
     tkhd.creation_time = (creation_time,)
     tkhd.modification_time = (modification_time,)
     tkhd.track_id = (-1,)
-    tkhd.duration = (-1,)
+    tkhd.duration = (20 * len(samples_sizes),)
 
     tkhd.layer = (0,)
     tkhd.alternate_group = (0,)
@@ -78,8 +109,8 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
 
     mdhd.creation_time = (creation_time,)
     mdhd.modification_time = (modification_time,)
-    mdhd.timescale = (-1,)
-    mdhd.duration = (-1,)
+    mdhd.timescale = (20,)
+    mdhd.duration = (20 * len(samples_sizes),)
 
     # TODO: check the language code
     mdhd.language = ([21, 14, 4],)
@@ -170,12 +201,9 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
 
     stsz.sample_size = (0,)
 
-    sample = stsz.append_and_return()
-    sample.entry_size = (samples_sizes[0],)
-    sample = stsz.append_and_return()
-    sample.entry_size = (samples_sizes[1],)
-    sample = stsz.append_and_return()
-    sample.entry_size = (samples_sizes[2],)
+    for samples_size in samples_sizes:
+        sample = stsz.append_and_return()
+        sample.entry_size = (samples_size,)
 
     stbl.append(stsz)
 
@@ -200,12 +228,9 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
     stco.header.version = (0,)
     stco.header.flags = (b"\x00\x00\x00",)
 
-    entry = stco.append_and_return()
-    entry.chunk_offset = (samples_offsets[0],)
-    entry = stco.append_and_return()
-    entry.chunk_offset = (samples_offsets[1],)
-    entry = stco.append_and_return()
-    entry.chunk_offset = (samples_offsets[2],)
+    for i in range(len(samples_sizes)):
+        entry = stco.append_and_return()
+        entry.chunk_offset = (samples_offset + sum(samples_sizes[0:i]),)
 
     stbl.append(stco)
 
@@ -218,9 +243,9 @@ def make_track(creation_time, modification_time, samples_sizes, samples_offsets)
     return trak
 
 
-def make_meta_track(creation_time, modification_time, label,
-                    samples_sizes, samples_offsets):
-    trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)
+def make_meta_trak(creation_time, modification_time, label,
+                   samples_sizes, samples_offset):
+    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offset)
 
     # MOOV.TRAK.MDIA
     mdia = trak.boxes[-1]
@@ -260,9 +285,9 @@ def make_meta_track(creation_time, modification_time, label,
     return trak
 
 
-def make_text_track(creation_time, modification_time, label,
-                    samples_sizes, samples_offsets):
-    trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)
+def make_text_trak(creation_time, modification_time, label,
+                   samples_sizes, samples_offset):
+    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offset)
 
     # MOOV.TRAK.MDIA
     mdia = trak.boxes[-1]
@@ -302,9 +327,9 @@ def make_text_track(creation_time, modification_time, label,
     return trak
 
 
-def make_vide_track(creation_time, modification_time, label,
-                    samples_sizes, samples_offsets):
-    trak = make_track(creation_time, modification_time, samples_sizes, samples_offsets)
+def make_vide_trak(creation_time, modification_time, label,
+                   samples_sizes, samples_offset):
+    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offset)
 
     # MOOV.TRAK.MDIA
     mdia = trak.boxes[-1]
@@ -341,8 +366,8 @@ def make_vide_track(creation_time, modification_time, label,
     avc1.data_reference_index = (1,)
     avc1.width = (-1,)
     avc1.height = (-1,)
-    avc1.horizresolution = ([-1, 0],)
-    avc1.vertresolution = ([-1, 0],)
+    avc1.horizresolution = ([72, 0],)
+    avc1.vertresolution = ([72, 0],)
     avc1.frame_count = (1,)
     avc1.compressorname = (b'\0' * 32,)
     avc1.depth = (24,)
@@ -355,14 +380,6 @@ def make_vide_track(creation_time, modification_time, label,
                    b'\x00\x02\x04\x01\x00\x07h\xee\x01\x9cL\x84\xc0'
 
     avc1.append(avcC)
-
-    # # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
-    # pasp = bx_def.PASP(headers.BoxHeader())
-    # pasp.header.type = b"pasp"
-    # pasp.h_spacing = (150,)
-    # pasp.v_spacing = (157,)
-    #
-    # avc1.append(pasp)
 
     stsd.append(avc1)
 
