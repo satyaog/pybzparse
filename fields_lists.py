@@ -208,6 +208,9 @@ class DataBoxFieldsList(AbstractFieldsList):
     def parse_fields(self, bstr, header):
         data_length = header.box_size - header.header_size
         self._read_field(bstr, self._data, value_type="bytes:{}".format(data_length))
+        # _read_field() setted the expected length of the field.
+        # Remove the expected length
+        self._data.type = "bytes"
 
 
 # Root boxes
