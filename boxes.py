@@ -542,6 +542,19 @@ class NullMediaHeaderBox(AbstractFullBox, MixinDictRepr):
         return b''
 
 
+class SubtitleMediaHeaderBox(AbstractFullBox, MixinDictRepr):
+    type = b"sthd"
+
+    def load(self, bstr):
+        pass
+
+    def parse_impl(self, bstr):
+        pass
+
+    def _get_content_bytes(self):
+        return b''
+
+
 class DataInformationBox(ContainerBox, MixinDictRepr):
     type = b"dinf"
 
@@ -930,6 +943,26 @@ class TextMetaDataSampleEntryBox(MetaDataSampleEntry, TextMetaDataSampleEntryBox
                b''.join([bytes(box) for box in self._boxes])
 
 
+class SubtitleSampleEntryBox(SampleEntryBox):
+    type = b"____"
+
+
+class TextSubtitleSampleEntryBox(MetaDataSampleEntry, TextSubtitleSampleEntryBoxFieldsList):
+    type = b"sbtt"
+
+    def __init__(self, header):
+        super().__init__(header)
+        TextSubtitleSampleEntryBoxFieldsList.__init__(self)
+
+    def parse_impl(self, bstr):
+        TextSubtitleSampleEntryBoxFieldsList.parse_fields(self, bstr, self._header)
+        self._boxes_start_pos = bstr.bytepos
+
+    def _get_content_bytes(self):
+        return AbstractFieldsList.__bytes__(self) + \
+               b''.join([bytes(box) for box in self._boxes])
+
+
 # dref boxes
 class DataEntryUrlBox(AbstractFullBox, DataEntryUrlBoxFieldsList, MixinDictRepr):
     type = b"url "
@@ -1078,6 +1111,7 @@ ELST = EditListBox
 # minf boxes
 VMHD = VideoMediaHeaderBox
 NMHD = NullMediaHeaderBox
+STHD = SubtitleMediaHeaderBox
 DINF = DataInformationBox
 
 # stbl boxes
@@ -1097,6 +1131,7 @@ IINF = ItemInformationBox
 AVC1 = AVC1SampleEntryBox
 STXT = SimpleTextSampleEntryBox
 METT = TextMetaDataSampleEntryBox
+SBTT = TextSubtitleSampleEntryBox
 
 # dref boxes
 URL_ = DataEntryUrlBox
@@ -1151,6 +1186,7 @@ Parser.register_box(ELST)
 # minf boxes
 Parser.register_box(VMHD)
 Parser.register_box(NMHD)
+Parser.register_box(STHD)
 Parser.register_box(DINF)
 
 # stbl boxes
@@ -1170,6 +1206,7 @@ Parser.register_box(IINF)
 Parser.register_box(AVC1)
 Parser.register_box(STXT)
 Parser.register_box(METT)
+Parser.register_box(SBTT)
 
 # dref boxes
 Parser.register_box(URL_)
