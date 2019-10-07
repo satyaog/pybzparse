@@ -2,10 +2,8 @@
 
 from bitstring import pack
 
-import boxes as bx_def
-import headers
-import fields_lists as flists
-from pybzparse import Parser
+from pybzparse import Parser, boxes as bx_def, fields_lists as flists
+from pybzparse.headers import BoxHeader, FullBoxHeader, MAX_UINT_32
 
 
 def test_header_fields_list():
@@ -23,16 +21,16 @@ def test_header_fields_list():
 
 
 def test_header_extended_fields_list():
-    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", headers.MAX_UINT_32 + 1)
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", MAX_UINT_32 + 1)
 
     fields_list = flists.BoxHeaderFieldsList()
     fields_list.box_size = (1,)
     fields_list.box_type = (b"abcd",)
-    fields_list.box_ext_size = (headers.MAX_UINT_32 + 1,)
+    fields_list.box_ext_size = (MAX_UINT_32 + 1,)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"abcd"
-    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == MAX_UINT_32 + 1
     assert fields_list.user_type is None
     assert bytes(fields_list) == bs.bytes
 
@@ -55,29 +53,29 @@ def test_header_user_type_fields_list():
 
 def test_header_extended_user_type_fields_list():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
 
     fields_list = flists.BoxHeaderFieldsList()
     fields_list.box_size = (1,)
     fields_list.box_type = (b"uuid",)
-    fields_list.box_ext_size = (headers.MAX_UINT_32 + 1,)
+    fields_list.box_ext_size = (MAX_UINT_32 + 1,)
     fields_list.user_type = (b":benzina\x00\x00\x00\x00\x00\x00\x00\x00",)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"uuid"
-    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == MAX_UINT_32 + 1
     assert fields_list.user_type == b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
     assert bytes(fields_list) == bs.bytes
 
     fields_list = flists.BoxHeaderFieldsList()
-    fields_list.box_ext_size = (headers.MAX_UINT_32 + 1,)
+    fields_list.box_ext_size = (MAX_UINT_32 + 1,)
     fields_list.user_type = (b":benzina\x00\x00\x00\x00\x00\x00\x00\x00",)
     fields_list.box_type = (b"uuid",)
     fields_list.box_size = (1,)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"uuid"
-    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == MAX_UINT_32 + 1
     assert fields_list.user_type == b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
     assert bytes(fields_list) == bs.bytes
 
@@ -85,7 +83,7 @@ def test_header_extended_user_type_fields_list():
 def test_box_header():
     bs = pack("uintbe:32, bytes:4", 100, b"abcd")
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     box_header.type = b"abcd"
     box_header.box_size = 100
 
@@ -95,7 +93,7 @@ def test_box_header():
     assert box_header.content_size == 92
     assert bytes(box_header) == bs.bytes
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     box_header.box_size = 100
     box_header.type = b"abcd"
 
@@ -108,35 +106,35 @@ def test_box_header():
 
 def test_box_header_extended_user_type():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    box_header.box_size = headers.MAX_UINT_32 + 1
+    box_header.box_size = MAX_UINT_32 + 1
 
     assert box_header.type == b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    assert box_header.box_size == headers.MAX_UINT_32 + 1
+    assert box_header.box_size == MAX_UINT_32 + 1
     assert box_header.header_size == 32
-    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 32
+    assert box_header.content_size == MAX_UINT_32 + 1 - 32
     assert bytes(box_header) == bs.bytes
 
-    box_header = headers.BoxHeader()
-    box_header.box_size = headers.MAX_UINT_32 + 1
+    box_header = BoxHeader()
+    box_header.box_size = MAX_UINT_32 + 1
     box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
 
     assert box_header.type == b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    assert box_header.box_size == headers.MAX_UINT_32 + 1
+    assert box_header.box_size == MAX_UINT_32 + 1
     assert box_header.header_size == 32
-    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 32
+    assert box_header.content_size == MAX_UINT_32 + 1 - 32
     assert bytes(box_header) == bs.bytes
 
 
 def test_box_header_w_drop():
     bs = pack("uintbe:32, bytes:4", 100, b"abcd")
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    box_header.box_size = headers.MAX_UINT_32 + 1
+    box_header.box_size = MAX_UINT_32 + 1
 
     box_header.type = b"abcd"
     box_header.box_size = 100
@@ -150,22 +148,22 @@ def test_box_header_w_drop():
 
 def test_box_header_extended_user_type_w_drop():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    box_header.box_size = headers.MAX_UINT_32 + 1
+    box_header.box_size = MAX_UINT_32 + 1
 
     box_header.type = b"abcd"
     box_header.box_size = 100
 
     box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    box_header.box_size = headers.MAX_UINT_32 + 1
+    box_header.box_size = MAX_UINT_32 + 1
 
     assert box_header.type == b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    assert box_header.box_size == headers.MAX_UINT_32 + 1
+    assert box_header.box_size == MAX_UINT_32 + 1
     assert box_header.header_size == 32
-    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 32
+    assert box_header.content_size == MAX_UINT_32 + 1 - 32
     assert bytes(box_header) == bs.bytes
 
 
@@ -173,7 +171,7 @@ def test_full_box_header():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               100, b"abcd", 1, b"\x00\x00\x07")
 
-    full_box_header = headers.FullBoxHeader()
+    full_box_header = FullBoxHeader()
     full_box_header.type = b"abcd"
     full_box_header.box_size = 100
     full_box_header.version = (1,)
@@ -189,7 +187,7 @@ def test_full_box_header():
 
     assert bytes(full_box_header) == bs.bytes
 
-    full_box_header = headers.FullBoxHeader()
+    full_box_header = FullBoxHeader()
     full_box_header.flags = (b"\x00\x00\x07",)
     full_box_header.type = b"abcd"
     full_box_header.version = (1,)
@@ -210,11 +208,11 @@ def test_full_box_header_w_drop():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               100, b"abcd", 1, b"\x00\x00\x07")
 
-    full_box_header = headers.FullBoxHeader()
+    full_box_header = FullBoxHeader()
     full_box_header.flags = (b"\x00\x00\x07",)
     full_box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
     full_box_header.version = (1,)
-    full_box_header.box_size = headers.MAX_UINT_32 + 1
+    full_box_header.box_size = MAX_UINT_32 + 1
 
     full_box_header.type = b"abcd"
     full_box_header.box_size = 100
@@ -236,7 +234,7 @@ def test_ftyp_box():
               24, b"ftyp",
               b"bzna", 10, b"mp42mp41")
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     ftyp = bx_def.FTYP(box_header)
     ftyp.header.type = b"ftyp"
     ftyp.major_brand = (1652190817,)            # b"bzna"
@@ -274,7 +272,7 @@ def test_mvhd_box_v0():
               b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4,
               3)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     mvhd = bx_def.MVHD(box_header)
 
     mvhd.header.type = b"mvhd"
@@ -336,7 +334,7 @@ def test_mvhd_box_v1():
               b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"\x00" * 4,
               3)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     mvhd = bx_def.MVHD(box_header)
 
     mvhd.header.type = b"mvhd"
@@ -402,7 +400,7 @@ def test_tkhd_box_v0():
               65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
               318, 0, 180, 0)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     tkhd = bx_def.TKHD(box_header)
 
     tkhd.header.type = b"tkhd"
@@ -472,7 +470,7 @@ def test_tkhd_box_v1():
               65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824,
               318, 0, 180, 0)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     tkhd = bx_def.TKHD(box_header)
 
     tkhd.header.type = b"tkhd"
@@ -532,7 +530,7 @@ def test_mdhd_box_v0():
               0x1, 21, 14, 4,
               b"\x00" * 2)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     mdhd = bx_def.MDHD(box_header)
 
     mdhd.header.type = b"mdhd"
@@ -578,7 +576,7 @@ def test_mdhd_box_v1():
               0x1, 21, 14, 4,
               b"\x00" * 2)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     mdhd = bx_def.MDHD(box_header)
 
     mdhd.header.type = b"mdhd"
@@ -620,7 +618,7 @@ def test_hdlr_box():
               51, b"hdlr", 0, b"\x00\x00\x00",
               0, b"vide", b"\x00" * 4, b"\x00" * 4, b"\x00" * 4, b"Vireo Eyes v2.4.22\0")
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     hdlr = bx_def.HDLR(box_header)
 
     hdlr.header.type = b"hdlr"
@@ -654,7 +652,7 @@ def test_elst_box_v0():
               28, b"elst", 0, b"\x00\x00\x00",
               1, 3000, 0, 1, 0)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     elst = bx_def.ELST(box_header)
 
     elst.header.type = b"elst"
@@ -695,7 +693,7 @@ def test_elst_box_v1():
               36, b"elst", 1, b"\x00\x00\x00",
               1, 3000, 0, 1, 0)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     elst = bx_def.ELST(box_header)
 
     elst.header.type = b"elst"
@@ -736,7 +734,7 @@ def test_vmhd_box():
               20, b"vmhd", 0, b"\x00\x00\x01",
               0, 0, 0, 0)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     vmhd = bx_def.VMHD(box_header)
 
     vmhd.header.type = b"vmhd"
@@ -766,7 +764,7 @@ def test_nmhd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               12, b"nmhd", 0, b"\x00\x00\x00")
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     nmhd = bx_def.NMHD(box_header)
 
     nmhd.header.type = b"nmhd"
@@ -790,7 +788,7 @@ def test_stsd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
               16, b"stsd", 0, b"\x00\x00\x00", 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     stsd = bx_def.STSD(box_header)
 
     stsd.header.type = b"stsd"
@@ -819,7 +817,7 @@ def test_stts_box():
               24, b"stts", 0, b"\x00\x00\x00",
               1, 1, 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     stts = bx_def.STTS(box_header)
 
     stts.header.type = b"stts"
@@ -856,7 +854,7 @@ def test_ctts_box_v0():
               24, b"ctts", 0, b"\x00\x00\x00",
               1, 1, 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     ctts = bx_def.CTTS(box_header)
 
     ctts.header.type = b"ctts"
@@ -893,7 +891,7 @@ def test_ctts_box_v1():
               24, b"ctts", 1, b"\x00\x00\x00",
               1, 1, -1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     ctts = bx_def.CTTS(box_header)
 
     ctts.header.type = b"ctts"
@@ -930,7 +928,7 @@ def test_stsz_box():
               24, b"stsz", 0, b"\x00\x00\x00",
               0, 1, 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     stsz = bx_def.STSZ(box_header)
 
     stsz.header.type = b"stsz"
@@ -967,7 +965,7 @@ def test_stsc_box():
               28, b"stsc", 0, b"\x00\x00\x00",
               1, 1, 1, 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     stsc = bx_def.STSC(box_header)
 
     stsc.header.type = b"stsc"
@@ -1006,7 +1004,7 @@ def test_stco_box():
               20, b"stco", 0, b"\x00\x00\x00",
               1, 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     stco = bx_def.STCO(box_header)
 
     stco.header.type = b"stco"
@@ -1039,7 +1037,7 @@ def test_dref_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, uintbe:32",
               16, b"dref", 0, b"\x00\x00\x00", 1)
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     dref = bx_def.DREF(box_header)
 
     dref.header.type = b"dref"
@@ -1070,7 +1068,7 @@ def test_sample_entry_box():
               0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
               1)
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     sample_entry_box = bx_def.SampleEntryBox(box_header)
 
     sample_entry_box.header.type = b"____"
@@ -1108,7 +1106,7 @@ def test_visual_sample_entry_box():
               1, b'\0' * 32, 24,
               -1)
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     visual_sample_entry_box = bx_def.VisualSampleEntryBox(box_header)
 
     visual_sample_entry_box.header.type = b"____"
@@ -1160,7 +1158,7 @@ def test_avc1_box():
               1, b'\0' * 32, 24,
               -1)
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     avc1 = bx_def.AVC1(box_header)
 
     avc1.header.type = b"avc1"
@@ -1205,7 +1203,7 @@ def test_stxt_box():
               1,
               b'\0', b'text/plain\0')
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     stxt = bx_def.STXT(box_header)
 
     stxt.header.type = b"stxt"
@@ -1240,7 +1238,7 @@ def test_mett_box():
               1,
               b'\0', b'image/heif\0')
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     mett = bx_def.METT(box_header)
 
     mett.header.type = b"mett"
@@ -1275,7 +1273,7 @@ def test_sbtt_box():
               1,
               b'\0', b'text/plain\0')
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     stxt = bx_def.STXT(box_header)
 
     stxt.header.type = b"sbtt"
@@ -1304,7 +1302,7 @@ def test_url__box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               12, b"url ", 0, b"\x00\x00\x01")
 
-    box_header = headers.FullBoxHeader()
+    box_header = FullBoxHeader()
     url_ = bx_def.URL_(box_header)
 
     url_.header.type = b"url "
@@ -1330,7 +1328,7 @@ def test_pasp_box():
     bs = pack("uintbe:32, bytes:4, uintbe:32, uintbe:32",
               16, b"pasp", 150, 157)
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     pasp = bx_def.PASP(box_header)
     pasp.header.type = b"pasp"
 
@@ -1358,7 +1356,7 @@ def test_clap_box():
               500, 1, 333, 1,
               -12, 2, -179, 2)
 
-    box_header = headers.BoxHeader()
+    box_header = BoxHeader()
     clap = bx_def.CLAP(box_header)
     clap.header.type = b"clap"
 

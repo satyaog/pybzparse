@@ -2,7 +2,7 @@ from datetime import datetime
 
 from bitstring import pack
 
-import utils
+import pybzparse.utils as utils
 
 
 def test_to_mp4_date():

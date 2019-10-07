@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
-import boxes as bx_def
-import headers
+from pybzparse import boxes as bx_def
+from pybzparse.headers import BoxHeader, FullBoxHeader
 
 BEGIN = datetime(1904, 1, 1, 0, 0)
 
@@ -16,7 +16,7 @@ def from_mp4_time(seconds):
 
 def make_mvhd(creation_time, modification_time, samples_count):
     # MOOV.MVHD
-    mvhd = bx_def.MVHD(headers.FullBoxHeader())
+    mvhd = bx_def.MVHD(FullBoxHeader())
 
     mvhd.header.type = b"mvhd"
     mvhd.header.version = (1,)
@@ -47,11 +47,11 @@ def make_mvhd(creation_time, modification_time, samples_count):
 
 def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     # MOOV.TRAK
-    trak = bx_def.TRAK(headers.BoxHeader())
+    trak = bx_def.TRAK(BoxHeader())
     trak.header.type = b"trak"
 
     # MOOV.TRAK.TKHD
-    tkhd = bx_def.TKHD(headers.FullBoxHeader())
+    tkhd = bx_def.TKHD(FullBoxHeader())
 
     tkhd.header.type = b"tkhd"
     tkhd.header.version = (1,)
@@ -76,11 +76,11 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     trak.append(tkhd)
 
     # # MOOV.TRAK.EDTS
-    # edts = bx_def.EDTS(headers.BoxHeader())
+    # edts = bx_def.EDTS(BoxHeader())
     # edts.header.type = b"edts"
     #
     # # MOOV.TRAK.EDTS.ELST
-    # elst = bx_def.ELST(headers.FullBoxHeader())
+    # elst = bx_def.ELST(FullBoxHeader())
     #
     # elst.header.type = b"elst"
     # elst.header.version = (1,)
@@ -97,11 +97,11 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     # trak.append(edts)
 
     # MOOV.TRAK.MDIA
-    mdia = bx_def.MDIA(headers.BoxHeader())
+    mdia = bx_def.MDIA(BoxHeader())
     mdia.header.type = b"mdia"
 
     # MOOV.TRAK.MDIA.MDHD
-    mdhd = bx_def.MDHD(headers.FullBoxHeader())
+    mdhd = bx_def.MDHD(FullBoxHeader())
 
     mdhd.header.type = b"mdhd"
     mdhd.header.version = (1,)
@@ -119,7 +119,7 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     mdia.append(mdhd)
 
     # MOOV.TRAK.MDIA.HDLR
-    hdlr = bx_def.HDLR(headers.FullBoxHeader())
+    hdlr = bx_def.HDLR(FullBoxHeader())
 
     hdlr.header.type = b"hdlr"
     hdlr.header.version = (0,)
@@ -131,27 +131,27 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     mdia.append(hdlr)
 
     # MOOV.TRAK.MDIA.MINF
-    minf = bx_def.MINF(headers.BoxHeader())
+    minf = bx_def.MINF(BoxHeader())
     minf.header.type = b"minf"
 
     # MOOV.TRAK.MDIA.MINF._MHD (placeholder)
-    _mhd = bx_def.UnknownBox(headers.BoxHeader())
+    _mhd = bx_def.UnknownBox(BoxHeader())
     _mhd.header.type = b"_mhd"
 
     minf.append(_mhd)
 
     # MOOV.TRAK.MDIA.MINF.DINF
-    dinf = bx_def.DINF(headers.BoxHeader())
+    dinf = bx_def.DINF(BoxHeader())
     dinf.header.type = b"dinf"
 
     # MOOV.TRAK.MDIA.MINF.DINF.DREF
-    dref = bx_def.DREF(headers.FullBoxHeader())
+    dref = bx_def.DREF(FullBoxHeader())
     dref.header.type = b"dref"
     dref.header.version = (0,)
     dref.header.flags = (b"\x00\x00\x00",)
 
     # MOOV.TRAK.MDIA.MINF.DINF.DREF.URL_
-    url_ = bx_def.URL_(headers.FullBoxHeader())
+    url_ = bx_def.URL_(FullBoxHeader())
 
     url_.header.type = b"url "
     url_.header.version = (0,)
@@ -165,11 +165,11 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     minf.append(dinf)
 
     # MOOV.TRAK.MDIA.MINF.STBL
-    stbl = bx_def.STBL(headers.BoxHeader())
+    stbl = bx_def.STBL(BoxHeader())
     stbl.header.type = b"stbl"
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD
-    stsd = bx_def.STSD(headers.FullBoxHeader())
+    stsd = bx_def.STSD(FullBoxHeader())
 
     stsd.header.type = b"stsd"
     stsd.header.version = (0,)
@@ -178,7 +178,7 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     stbl.append(stsd)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STTS
-    stts = bx_def.STTS(headers.FullBoxHeader())
+    stts = bx_def.STTS(FullBoxHeader())
 
     stts.header.type = b"stts"
     stts.header.version = (0,)
@@ -193,7 +193,7 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     stbl.append(stts)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSZ
-    stsz = bx_def.STSZ(headers.FullBoxHeader())
+    stsz = bx_def.STSZ(FullBoxHeader())
 
     stsz.header.type = b"stsz"
     stsz.header.version = (0,)
@@ -208,7 +208,7 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     stbl.append(stsz)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSC
-    stsc = bx_def.STSC(headers.FullBoxHeader())
+    stsc = bx_def.STSC(FullBoxHeader())
 
     stsc.header.type = b"stsc"
     stsc.header.version = (0,)
@@ -222,7 +222,7 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     stbl.append(stsc)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STCO
-    stco = bx_def.STCO(headers.FullBoxHeader())
+    stco = bx_def.STCO(FullBoxHeader())
 
     stco.header.type = b"stco"
     stco.header.version = (0,)
@@ -259,7 +259,7 @@ def make_meta_trak(creation_time, modification_time, label,
     minf = mdia.boxes[-1]
 
     # MOOV.TRAK.MDIA.MINF.NMHD
-    nmhd = bx_def.NMHD(headers.FullBoxHeader())
+    nmhd = bx_def.NMHD(FullBoxHeader())
     minf.boxes[0] = nmhd
 
     nmhd.header.type = b"nmhd"
@@ -273,7 +273,7 @@ def make_meta_trak(creation_time, modification_time, label,
     stsd = stbl.boxes[0]
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.METT
-    mett = bx_def.METT(headers.BoxHeader())
+    mett = bx_def.METT(BoxHeader())
 
     mett.header.type = b"mett"
     mett.data_reference_index = (1,)
@@ -301,7 +301,7 @@ def make_text_trak(creation_time, modification_time, label,
     minf = mdia.boxes[-1]
 
     # MOOV.TRAK.MDIA.MINF.NMHD
-    nmhd = bx_def.NMHD(headers.FullBoxHeader())
+    nmhd = bx_def.NMHD(FullBoxHeader())
     minf.boxes[0] = nmhd
 
     nmhd.header.type = b"nmhd"
@@ -315,7 +315,7 @@ def make_text_trak(creation_time, modification_time, label,
     stsd = stbl.boxes[0]
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.STXT
-    stxt = bx_def.STXT(headers.BoxHeader())
+    stxt = bx_def.STXT(BoxHeader())
 
     stxt.header.type = b"stxt"
     stxt.data_reference_index = (1,)
@@ -343,7 +343,7 @@ def make_vide_trak(creation_time, modification_time, label,
     minf = mdia.boxes[-1]
 
     # MOOV.TRAK.MDIA.MINF.VMHD
-    vmhd = bx_def.VMHD(headers.FullBoxHeader())
+    vmhd = bx_def.VMHD(FullBoxHeader())
     minf.boxes[0] = vmhd
 
     vmhd.header.type = b"vmhd"
@@ -360,7 +360,7 @@ def make_vide_trak(creation_time, modification_time, label,
     stsd = stbl.boxes[0]
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
-    avc1 = bx_def.AVC1(headers.BoxHeader())
+    avc1 = bx_def.AVC1(BoxHeader())
 
     avc1.header.type = b"avc1"
     avc1.data_reference_index = (1,)
@@ -373,7 +373,7 @@ def make_vide_trak(creation_time, modification_time, label,
     avc1.depth = (24,)
 
     # TODO: implement MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.AVCC
-    avcC = bx_def.UnknownBox(headers.BoxHeader())
+    avcC = bx_def.UnknownBox(BoxHeader())
     avcC.header.type = b"avcC"
     avcC.payload = b'\x01d\x10\x16\xff\xe1\x00\x1bgd\x10\x16\xac\xb8\x10\x02' \
                    b'\r\xff\x80K\x00N\xb6\xa5\x00\x00\x03\x00\x01\x00\x00\x03' \
@@ -382,7 +382,7 @@ def make_vide_trak(creation_time, modification_time, label,
     avc1.append(avcC)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1.PASP
-    pasp = bx_def.PASP(headers.BoxHeader())
+    pasp = bx_def.PASP(BoxHeader())
     pasp.header.type = b"pasp"
     pasp.h_spacing = (1,)
     pasp.v_spacing = (1,)

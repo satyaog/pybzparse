@@ -2,10 +2,10 @@ from datetime import datetime
 
 from bitstring import pack
 
-import boxes as bx_def
-import headers
-from utils import to_mp4_time, make_mvhd, \
-                  make_meta_trak, make_text_trak, make_vide_trak
+from pybzparse import boxes as bx_def
+from pybzparse.headers import BoxHeader
+from pybzparse.utils import to_mp4_time, make_mvhd, \
+                            make_meta_trak, make_text_trak, make_vide_trak
 
 
 def test_mp4_dataset():
@@ -13,7 +13,7 @@ def test_mp4_dataset():
     modification_time = to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
 
     # FTYP
-    ftyp = bx_def.FTYP(headers.BoxHeader())
+    ftyp = bx_def.FTYP(BoxHeader())
     ftyp.header.type = b"ftyp"
     ftyp.major_brand = (1769172845,)            # b"isom"
     ftyp.minor_version = (0,)
@@ -34,7 +34,7 @@ def test_mp4_dataset():
                                b"bznaisom")
 
     # MDAT
-    mdat = bx_def.MDAT(headers.BoxHeader())
+    mdat = bx_def.MDAT(BoxHeader())
     mdat.header.type = b"mdat"
 
     data = []
@@ -62,7 +62,7 @@ def test_mp4_dataset():
     assert mdat.header.box_size == 8 + sum(len(entry) for entry in data)
 
     # MOOV
-    moov = bx_def.MOOV(headers.BoxHeader())
+    moov = bx_def.MOOV(BoxHeader())
     moov.header.type = b"moov"
 
     # MOOV.MVHD
@@ -434,7 +434,7 @@ def test_mp4_small_vid():
     modification_time = to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
 
     # FTYP
-    ftyp = bx_def.FTYP(headers.BoxHeader())
+    ftyp = bx_def.FTYP(BoxHeader())
     ftyp.header.type = b"ftyp"
     ftyp.major_brand = (1836069937,)                # b"mp41"
     ftyp.minor_version = (0,)
@@ -453,7 +453,7 @@ def test_mp4_small_vid():
                                b"mp41", 0, b'mp41')
 
     # MDAT
-    mdat = bx_def.MDAT(headers.BoxHeader())
+    mdat = bx_def.MDAT(BoxHeader())
     mdat.header.type = b"mdat"
 
     data = []
@@ -473,7 +473,7 @@ def test_mp4_small_vid():
     assert mdat.header.box_size == 518258
 
     # MOOV
-    moov = bx_def.MOOV(headers.BoxHeader())
+    moov = bx_def.MOOV(BoxHeader())
     moov.header.type = b"moov"
 
     # MOOV.MVHD

@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
-
-from fields_lists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
-from pybzparse import Parser
 from ctypes import c_uint32
+
+from pybzparse import Parser
+from pybzparse.fields_lists import BoxHeaderFieldsList, FullBoxHeaderFieldsList
 
 
 MAX_UINT_32 = c_uint32(-1).value

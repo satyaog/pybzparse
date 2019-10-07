@@ -2,8 +2,6 @@
 
 from bitstring import ConstBitStream
 
-import boxes as bx_def
-from boxes import UnknownBox, SingleItemTypeReferenceBox
 from pybzparse import Parser
 
 

@@ -2,10 +2,8 @@
 
 from bitstring import pack
 
-import boxes as bx_def
-import headers
-import fields_lists as flists
-from pybzparse import Parser
+from pybzparse import Parser, boxes as bx_def, fields_lists as flists
+from pybzparse.headers import FullBoxHeader, MAX_UINT_32
 
 
 def test_header_fields_list():
@@ -21,13 +19,13 @@ def test_header_fields_list():
 
 
 def test_header_extended_fields_list():
-    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", headers.MAX_UINT_32 + 1)
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", MAX_UINT_32 + 1)
     fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"abcd"
-    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == MAX_UINT_32 + 1
     assert fields_list.user_type is None
     assert bytes(fields_list) == bs.bytes
 
@@ -47,13 +45,13 @@ def test_header_user_type_fields_list():
 
 def test_header_extended_user_type_fields_list():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
     fields_list = flists.BoxHeaderFieldsList()
     fields_list.parse_fields(bs)
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"uuid"
-    assert fields_list.box_ext_size == headers.MAX_UINT_32 + 1
+    assert fields_list.box_ext_size == MAX_UINT_32 + 1
     assert fields_list.user_type == b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
     assert bytes(fields_list) == bs.bytes
 
@@ -71,14 +69,14 @@ def test_box_header():
 
 
 def test_box_header_extended():
-    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", headers.MAX_UINT_32 + 1)
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", MAX_UINT_32 + 1)
     box_header = Parser.parse_header(bs)
 
     assert box_header.start_pos == 0
     assert box_header.type == b"abcd"
-    assert box_header.box_size == headers.MAX_UINT_32 + 1
+    assert box_header.box_size == MAX_UINT_32 + 1
     assert box_header.header_size == 16
-    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 16
+    assert box_header.content_size == MAX_UINT_32 + 1 - 16
     assert bytes(box_header) == bs.bytes
 
 
@@ -97,14 +95,14 @@ def test_box_header_user_type():
 
 def test_box_header_extended_user_type():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
-              headers.MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
+              MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
     box_header = Parser.parse_header(bs)
 
     assert box_header.start_pos == 0
     assert box_header.type == b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    assert box_header.box_size == headers.MAX_UINT_32 + 1
+    assert box_header.box_size == MAX_UINT_32 + 1
     assert box_header.header_size == 32
-    assert box_header.content_size == headers.MAX_UINT_32 + 1 - 32
+    assert box_header.content_size == MAX_UINT_32 + 1 - 32
     assert bytes(box_header) == bs.bytes
 
 
@@ -112,7 +110,7 @@ def test_full_box_header():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24",
               100, b"abcd", 1, b"\x00\x00\x07")
     box_header = Parser.parse_header(bs)
-    full_box_header = headers.FullBoxHeader()
+    full_box_header = FullBoxHeader()
     full_box_header.extend_header(bs, box_header)
     del box_header
 
