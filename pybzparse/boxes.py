@@ -346,7 +346,7 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
 
     @width.setter
     def width(self, value):
-        self._set_field(self._width, *value)
+        self._set_field(self._width, value)
 
     @property
     def height(self):
@@ -354,7 +354,7 @@ class TrackHeaderBox(AbstractFullBox, TrackHeaderBoxFieldsList, MixinDictRepr):
 
     @height.setter
     def height(self, value):
-        self._set_field(self._height, *value)
+        self._set_field(self._height, value)
 
     @property
     def is_audio(self):

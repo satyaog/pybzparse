@@ -64,6 +64,8 @@ class AbstractFieldsList:
 
     def _set_field(self, field, value, value_type=None):
         if value is not None:
+            if value_type is None and isinstance(value, tuple):
+                value, value_type = value if len(value) == 2 else (*value, None)
             if field.index is None:
                 self._register_field(field)
             else:
@@ -120,7 +122,7 @@ class BoxHeaderFieldsList(AbstractFieldsList):
 
     @box_size.setter
     def box_size(self, value):
-        self._set_field(self._box_size, *value)
+        self._set_field(self._box_size, value)
 
     @property
     def box_type(self):
@@ -128,7 +130,7 @@ class BoxHeaderFieldsList(AbstractFieldsList):
 
     @box_type.setter
     def box_type(self, value):
-        self._set_field(self._box_type, *value)
+        self._set_field(self._box_type, value)
 
     @property
     def box_ext_size(self):
@@ -136,7 +138,7 @@ class BoxHeaderFieldsList(AbstractFieldsList):
 
     @box_ext_size.setter
     def box_ext_size(self, value):
-        self._set_field(self._box_ext_size, *value)
+        self._set_field(self._box_ext_size, value)
 
     @property
     def user_type(self):
@@ -144,7 +146,7 @@ class BoxHeaderFieldsList(AbstractFieldsList):
 
     @user_type.setter
     def user_type(self, value):
-        self._set_field(self._user_type, *value)
+        self._set_field(self._user_type, value)
 
     def parse_fields(self, bstr):
         self._read_field(bstr, self._box_size)
@@ -171,7 +173,7 @@ class FullBoxHeaderFieldsList(BoxHeaderFieldsList):
 
     @version.setter
     def version(self, value):
-        self._set_field(self._version, *value)
+        self._set_field(self._version, value)
 
     @property
     def flags(self):
@@ -181,7 +183,7 @@ class FullBoxHeaderFieldsList(BoxHeaderFieldsList):
     def flags(self, value):
         if isinstance(value, bs.BitStream):
             value = value.bytes
-        self._set_field(self._flags, *value)
+        self._set_field(self._flags, value)
 
     def parse_fields(self, bstr):
         super().parse_fields(bstr)
@@ -203,7 +205,7 @@ class DataBoxFieldsList(AbstractFieldsList):
 
     @data.setter
     def data(self, value):
-        self._set_field(self._data, *value)
+        self._set_field(self._data, value)
 
     def parse_fields(self, bstr, header):
         data_length = header.box_size - header.header_size
@@ -231,7 +233,7 @@ class FileTypeBoxFieldsList(AbstractFieldsList):
 
     @major_brand.setter
     def major_brand(self, value):
-        self._set_field(self._major_brand, *value)
+        self._set_field(self._major_brand, value)
 
     @property
     def minor_version(self):
@@ -239,7 +241,7 @@ class FileTypeBoxFieldsList(AbstractFieldsList):
 
     @minor_version.setter
     def minor_version(self, value):
-        self._set_field(self._minor_version, *value)
+        self._set_field(self._minor_version, value)
 
     @property
     def compatible_brands(self):
@@ -247,7 +249,7 @@ class FileTypeBoxFieldsList(AbstractFieldsList):
 
     @compatible_brands.setter
     def compatible_brands(self, value):
-        self._set_field(self._compatible_brands, *value)
+        self._set_field(self._compatible_brands, value)
 
     def parse_fields(self, bstr, header):
         self._read_field(bstr, self._major_brand)
@@ -305,7 +307,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @creation_time.setter
     def creation_time(self, value):
-        self._set_field(self._creation_time, *value)
+        self._set_field(self._creation_time, value)
 
     @property
     def modification_time(self):
@@ -313,7 +315,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @modification_time.setter
     def modification_time(self, value):
-        self._set_field(self._modification_time, *value)
+        self._set_field(self._modification_time, value)
 
     @property
     def timescale(self):
@@ -321,7 +323,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @timescale.setter
     def timescale(self, value):
-        self._set_field(self._timescale, *value)
+        self._set_field(self._timescale, value)
 
     @property
     def duration(self):
@@ -329,7 +331,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @duration.setter
     def duration(self, value):
-        self._set_field(self._duration, *value)
+        self._set_field(self._duration, value)
 
     @property
     def rate(self):
@@ -337,7 +339,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @rate.setter
     def rate(self, value):
-        self._set_field(self._rate, *value)
+        self._set_field(self._rate, value)
 
     @property
     def volume(self):
@@ -345,7 +347,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @volume.setter
     def volume(self, value):
-        self._set_field(self._volume, *value)
+        self._set_field(self._volume, value)
 
     @property
     def matrix(self):
@@ -353,7 +355,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @matrix.setter
     def matrix(self, value):
-        self._set_field(self._matrix, *value)
+        self._set_field(self._matrix, value)
 
     @property
     def pre_defined(self):
@@ -361,7 +363,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @pre_defined.setter
     def pre_defined(self, value):
-        self._set_field(self._pre_defined, *value)
+        self._set_field(self._pre_defined, value)
 
     @property
     def next_track_id(self):
@@ -369,7 +371,7 @@ class MovieHeaderBoxFieldsList(AbstractFieldsList):
 
     @next_track_id.setter
     def next_track_id(self, value):
-        self._set_field(self._next_track_id, *value)
+        self._set_field(self._next_track_id, value)
 
     def parse_fields(self, bstr, header):
         if header.version != 1:
@@ -425,7 +427,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
     @offset_size.setter
     def offset_size(self, value):
-        self._set_field(self._offset_size, *value)
+        self._set_field(self._offset_size, value)
 
     @property
     def length_size(self):
@@ -433,7 +435,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
     @length_size.setter
     def length_size(self, value):
-        self._set_field(self._length_size, *value)
+        self._set_field(self._length_size, value)
 
     @property
     def base_offset_size(self):
@@ -441,7 +443,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
     @base_offset_size.setter
     def base_offset_size(self, value):
-        self._set_field(self._base_offset_size, *value)
+        self._set_field(self._base_offset_size, value)
 
     @property
     def index_size(self):
@@ -449,7 +451,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
     @index_size.setter
     def index_size(self, value):
-        self._set_field(self._index_size, *value)
+        self._set_field(self._index_size, value)
 
     @property
     def item_count(self):
@@ -457,7 +459,7 @@ class ItemLocationBoxFieldsList(AbstractFieldsList):
 
     @item_count.setter
     def item_count(self, value):
-        self._set_field(self._item_count, *value)
+        self._set_field(self._item_count, value)
 
     def parse_fields(self, bstr, header):
         if header.version < 2:
@@ -500,7 +502,7 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
     @item_id.setter
     def item_id(self, value):
-        self._set_field(self._item_id, *value)
+        self._set_field(self._item_id, value)
 
     @property
     def construction_method(self):
@@ -508,7 +510,7 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
     @construction_method.setter
     def construction_method(self, value):
-        self._set_field(self._construction_method, *value)
+        self._set_field(self._construction_method, value)
 
     @property
     def data_reference_index(self):
@@ -516,7 +518,7 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
     @data_reference_index.setter
     def data_reference_index(self, value):
-        self._set_field(self._data_reference_index, *value)
+        self._set_field(self._data_reference_index, value)
 
     @property
     def base_offset(self):
@@ -524,7 +526,7 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
     @base_offset.setter
     def base_offset(self, value):
-        self._set_field(self._base_offset, *value)
+        self._set_field(self._base_offset, value)
 
     @property
     def extent_count(self):
@@ -532,7 +534,7 @@ class ItemLocationBoxItemFieldsList(AbstractFieldsList):
 
     @extent_count.setter
     def extent_count(self, value):
-        self._set_field(self._extent_count, *value)
+        self._set_field(self._extent_count, value)
 
     def parse_fields(self, bstr, header):
         if header.version < 2:
@@ -570,7 +572,7 @@ class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
 
     @extent_index.setter
     def extent_index(self, value):
-        self._set_field(self._extent_index, *value)
+        self._set_field(self._extent_index, value)
 
     @property
     def extent_offset(self):
@@ -578,7 +580,7 @@ class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
 
     @extent_offset.setter
     def extent_offset(self, value):
-        self._set_field(self._extent_offset, *value)
+        self._set_field(self._extent_offset, value)
 
     @property
     def extent_length(self):
@@ -586,7 +588,7 @@ class ItemLocationBoxItemExtentFieldsList(AbstractFieldsList):
 
     @extent_length.setter
     def extent_length(self, value):
-        self._set_field(self._extent_length, *value)
+        self._set_field(self._extent_length, value)
 
     def parse_fields(self, bstr, header):
         if (header.version == 1 or header.version == 2) and \
@@ -654,7 +656,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @creation_time.setter
     def creation_time(self, value):
-        self._set_field(self._creation_time, *value)
+        self._set_field(self._creation_time, value)
 
     @property
     def modification_time(self):
@@ -662,7 +664,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @modification_time.setter
     def modification_time(self, value):
-        self._set_field(self._modification_time, *value)
+        self._set_field(self._modification_time, value)
 
     @property
     def track_id(self):
@@ -670,7 +672,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @track_id.setter
     def track_id(self, value):
-        self._set_field(self._track_id, *value)
+        self._set_field(self._track_id, value)
 
     @property
     def duration(self):
@@ -678,7 +680,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @duration.setter
     def duration(self, value):
-        self._set_field(self._duration, *value)
+        self._set_field(self._duration, value)
 
     @property
     def layer(self):
@@ -686,7 +688,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @layer.setter
     def layer(self, value):
-        self._set_field(self._layer, *value)
+        self._set_field(self._layer, value)
 
     @property
     def alternate_group(self):
@@ -694,7 +696,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @alternate_group.setter
     def alternate_group(self, value):
-        self._set_field(self._alternate_group, *value)
+        self._set_field(self._alternate_group, value)
 
     @property
     def volume(self):
@@ -702,7 +704,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @volume.setter
     def volume(self, value):
-        self._set_field(self._volume, *value)
+        self._set_field(self._volume, value)
 
     @property
     def matrix(self):
@@ -710,7 +712,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @matrix.setter
     def matrix(self, value):
-        self._set_field(self._matrix, *value)
+        self._set_field(self._matrix, value)
 
     @property
     def width(self):
@@ -718,7 +720,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @width.setter
     def width(self, value):
-        self._set_field(self._width, *value)
+        self._set_field(self._width, value)
 
     @property
     def height(self):
@@ -726,7 +728,7 @@ class TrackHeaderBoxFieldsList(AbstractFieldsList):
 
     @height.setter
     def height(self, value):
-        self._set_field(self._height, *value)
+        self._set_field(self._height, value)
 
     def parse_fields(self, bstr, header):
         if header.version != 1:
@@ -779,7 +781,7 @@ class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
 
     @from_item_id.setter
     def from_item_id(self, value):
-        self._set_field(self._from_item_id, *value)
+        self._set_field(self._from_item_id, value)
 
     @property
     def reference_count(self):
@@ -787,7 +789,7 @@ class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
 
     @reference_count.setter
     def reference_count(self, value):
-        self._set_field(self._reference_count, *value)
+        self._set_field(self._reference_count, value)
 
     @property
     def to_item_ids(self):
@@ -795,7 +797,7 @@ class SingleItemTypeReferenceBoxFieldsList(AbstractFieldsList):
 
     @to_item_ids.setter
     def to_item_ids(self, value):
-        self._set_field(self._to_item_ids, *value)
+        self._set_field(self._to_item_ids, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -822,7 +824,7 @@ class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
 
     @from_item_id.setter
     def from_item_id(self, value):
-        self._set_field(self._from_item_id, *value)
+        self._set_field(self._from_item_id, value)
 
     @property
     def reference_count(self):
@@ -830,7 +832,7 @@ class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
 
     @reference_count.setter
     def reference_count(self, value):
-        self._set_field(self._reference_count, *value)
+        self._set_field(self._reference_count, value)
 
     @property
     def to_item_ids(self):
@@ -838,7 +840,7 @@ class SingleItemTypeReferenceBoxLargeFieldsList(AbstractFieldsList):
 
     @to_item_ids.setter
     def to_item_ids(self, value):
-        self._set_field(self._to_item_ids, *value)
+        self._set_field(self._to_item_ids, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -861,7 +863,7 @@ class ItemPropertyAssociationBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         self._read_field(bstr, self._entry_count)
@@ -882,7 +884,7 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
 
     @item_id.setter
     def item_id(self, value):
-        self._set_field(self._item_id, *value)
+        self._set_field(self._item_id, value)
 
     @property
     def association_count(self):
@@ -890,7 +892,7 @@ class ItemPropertyAssociationBoxEntryFieldsList(AbstractFieldsList):
 
     @association_count.setter
     def association_count(self, value):
-        self._set_field(self._association_count, *value)
+        self._set_field(self._association_count, value)
 
     def parse_fields(self, bstr, header):
         if header.version < 1:
@@ -918,7 +920,7 @@ class ItemPropertyAssociationBoxEntryAssociationsFieldsList(AbstractFieldsList):
 
     @essential.setter
     def essential(self, value):
-        self._set_field(self._essential, *value)
+        self._set_field(self._essential, value)
 
     @property
     def property_index(self):
@@ -978,7 +980,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @creation_time.setter
     def creation_time(self, value):
-        self._set_field(self._creation_time, *value)
+        self._set_field(self._creation_time, value)
 
     @property
     def modification_time(self):
@@ -986,7 +988,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @modification_time.setter
     def modification_time(self, value):
-        self._set_field(self._modification_time, *value)
+        self._set_field(self._modification_time, value)
 
     @property
     def timescale(self):
@@ -994,7 +996,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @timescale.setter
     def timescale(self, value):
-        self._set_field(self._timescale, *value)
+        self._set_field(self._timescale, value)
 
     @property
     def duration(self):
@@ -1002,7 +1004,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @duration.setter
     def duration(self, value):
-        self._set_field(self._duration, *value)
+        self._set_field(self._duration, value)
 
     @property
     def language(self):
@@ -1010,7 +1012,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @language.setter
     def language(self, value):
-        self._set_field(self._language, *value)
+        self._set_field(self._language, value)
 
     @property
     def pre_defined(self):
@@ -1018,7 +1020,7 @@ class MediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @pre_defined.setter
     def pre_defined(self, value):
-        self._set_field(self._pre_defined, *value)
+        self._set_field(self._pre_defined, value)
 
     def parse_fields(self, bstr, header):
         if header.version != 1:
@@ -1064,7 +1066,7 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
 
     @pre_defined.setter
     def pre_defined(self, value):
-        self._set_field(self._pre_defined, *value)
+        self._set_field(self._pre_defined, value)
 
     @property
     def handler_type(self):
@@ -1072,7 +1074,7 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
 
     @handler_type.setter
     def handler_type(self, value):
-        self._set_field(self._handler_type, *value)
+        self._set_field(self._handler_type, value)
 
     @property
     def name(self):
@@ -1080,7 +1082,7 @@ class HandlerReferenceBoxFieldsList(AbstractFieldsList):
 
     @name.setter
     def name(self, value):
-        self._set_field(self._name, *value)
+        self._set_field(self._name, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1110,7 +1112,7 @@ class EditListBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1136,7 +1138,7 @@ class EditListBoxEntryFieldsList(AbstractFieldsList):
 
     @segment_duration.setter
     def segment_duration(self, value):
-        self._set_field(self._segment_duration, *value)
+        self._set_field(self._segment_duration, value)
 
     @property
     def media_time(self):
@@ -1144,7 +1146,7 @@ class EditListBoxEntryFieldsList(AbstractFieldsList):
 
     @media_time.setter
     def media_time(self, value):
-        self._set_field(self._media_time, *value)
+        self._set_field(self._media_time, value)
 
     @property
     def media_rate_integer(self):
@@ -1152,7 +1154,7 @@ class EditListBoxEntryFieldsList(AbstractFieldsList):
 
     @media_rate_integer.setter
     def media_rate_integer(self, value):
-        self._set_field(self._media_rate_integer, *value)
+        self._set_field(self._media_rate_integer, value)
 
     @property
     def media_rate_fraction(self):
@@ -1160,7 +1162,7 @@ class EditListBoxEntryFieldsList(AbstractFieldsList):
 
     @media_rate_fraction.setter
     def media_rate_fraction(self, value):
-        self._set_field(self._media_rate_fraction, *value)
+        self._set_field(self._media_rate_fraction, value)
 
     def parse_fields(self, bstr, header):
         if header.version == 0:
@@ -1190,7 +1192,7 @@ class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @graphicsmode.setter
     def graphicsmode(self, value):
-        self._set_field(self._graphicsmode, *value)
+        self._set_field(self._graphicsmode, value)
 
     @property
     def opcolor(self):
@@ -1198,7 +1200,7 @@ class VideoMediaHeaderBoxFieldsList(AbstractFieldsList):
 
     @opcolor.setter
     def opcolor(self, value):
-        self._set_field(self._opcolor, *value)
+        self._set_field(self._opcolor, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1223,7 +1225,7 @@ class SampleDescriptionBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1245,7 +1247,7 @@ class TimeToSampleBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1267,7 +1269,7 @@ class TimeToSampleBoxEntryFieldsList(AbstractFieldsList):
 
     @sample_count.setter
     def sample_count(self, value):
-        self._set_field(self._sample_count, *value)
+        self._set_field(self._sample_count, value)
 
     @property
     def sample_delta(self):
@@ -1275,7 +1277,7 @@ class TimeToSampleBoxEntryFieldsList(AbstractFieldsList):
 
     @sample_delta.setter
     def sample_delta(self, value):
-        self._set_field(self._sample_delta, *value)
+        self._set_field(self._sample_delta, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1298,7 +1300,7 @@ class CompositionOffsetBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1320,7 +1322,7 @@ class CompositionOffsetBoxEntryFieldsList(AbstractFieldsList):
 
     @sample_count.setter
     def sample_count(self, value):
-        self._set_field(self._sample_count, *value)
+        self._set_field(self._sample_count, value)
 
     @property
     def sample_offset(self):
@@ -1328,7 +1330,7 @@ class CompositionOffsetBoxEntryFieldsList(AbstractFieldsList):
 
     @sample_offset.setter
     def sample_offset(self, value):
-        self._set_field(self._sample_offset, *value)
+        self._set_field(self._sample_offset, value)
 
     def parse_fields(self, bstr, header):
         if header.version == 1:
@@ -1354,7 +1356,7 @@ class SampleSizeBoxFieldsList(AbstractFieldsList):
 
     @sample_size.setter
     def sample_size(self, value):
-        self._set_field(self._sample_size, *value)
+        self._set_field(self._sample_size, value)
 
     @property
     def sample_count(self):
@@ -1362,7 +1364,7 @@ class SampleSizeBoxFieldsList(AbstractFieldsList):
 
     @sample_count.setter
     def sample_count(self, value):
-        self._set_field(self._sample_count, *value)
+        self._set_field(self._sample_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1383,7 +1385,7 @@ class SampleSizeBoxSampleFieldsList(AbstractFieldsList):
 
     @entry_size.setter
     def entry_size(self, value):
-        self._set_field(self._entry_size, *value)
+        self._set_field(self._entry_size, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1405,7 +1407,7 @@ class SampleToChunkBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1429,7 +1431,7 @@ class SampleToChunkBoxEntryFieldsList(AbstractFieldsList):
 
     @first_chunk.setter
     def first_chunk(self, value):
-        self._set_field(self._first_chunk, *value)
+        self._set_field(self._first_chunk, value)
 
     @property
     def samples_per_chunk(self):
@@ -1437,7 +1439,7 @@ class SampleToChunkBoxEntryFieldsList(AbstractFieldsList):
 
     @samples_per_chunk.setter
     def samples_per_chunk(self, value):
-        self._set_field(self._samples_per_chunk, *value)
+        self._set_field(self._samples_per_chunk, value)
 
     @property
     def sample_description_index(self):
@@ -1445,7 +1447,7 @@ class SampleToChunkBoxEntryFieldsList(AbstractFieldsList):
 
     @sample_description_index.setter
     def sample_description_index(self, value):
-        self._set_field(self._sample_description_index, *value)
+        self._set_field(self._sample_description_index, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1469,7 +1471,7 @@ class ChunkOffsetBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1489,7 +1491,7 @@ class ChunkOffsetBoxEntryFieldsList(AbstractFieldsList):
 
     @chunk_offset.setter
     def chunk_offset(self, value):
-        self._set_field(self._chunk_offset, *value)
+        self._set_field(self._chunk_offset, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1512,7 +1514,7 @@ class DataReferenceBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1531,7 +1533,7 @@ class PrimaryItemBoxFieldsList(AbstractFieldsList):
 
     @item_id.setter
     def item_id(self, value):
-        self._set_field(self._item_id, *value)
+        self._set_field(self._item_id, value)
 
     def parse_fields(self, bstr, header):
         if header.version == 0:
@@ -1552,7 +1554,7 @@ class ItemInformationBoxFieldsList(AbstractFieldsList):
 
     @entry_count.setter
     def entry_count(self, value):
-        self._set_field(self._entry_count, *value)
+        self._set_field(self._entry_count, value)
 
     def parse_fields(self, bstr, header):
         if header.version == 0:
@@ -1581,7 +1583,7 @@ class SampleEntryBoxFieldsList(AbstractFieldsList):
 
     @data_reference_index.setter
     def data_reference_index(self, value):
-        self._set_field(self._data_reference_index, *value)
+        self._set_field(self._data_reference_index, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -1641,7 +1643,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @width.setter
     def width(self, value):
-        self._set_field(self._width, *value)
+        self._set_field(self._width, value)
 
     @property
     def height(self):
@@ -1649,7 +1651,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @height.setter
     def height(self, value):
-        self._set_field(self._height, *value)
+        self._set_field(self._height, value)
 
     @property
     def horizresolution(self):
@@ -1657,7 +1659,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @horizresolution.setter
     def horizresolution(self, value):
-        self._set_field(self._horizresolution, *value)
+        self._set_field(self._horizresolution, value)
 
     @property
     def vertresolution(self):
@@ -1665,7 +1667,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @vertresolution.setter
     def vertresolution(self, value):
-        self._set_field(self._vertresolution, *value)
+        self._set_field(self._vertresolution, value)
 
     @property
     def frame_count(self):
@@ -1673,7 +1675,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @frame_count.setter
     def frame_count(self, value):
-        self._set_field(self._frame_count, *value)
+        self._set_field(self._frame_count, value)
 
     @property
     def compressorname(self):
@@ -1681,7 +1683,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @compressorname.setter
     def compressorname(self, value):
-        self._set_field(self._compressorname, *value)
+        self._set_field(self._compressorname, value)
 
     @property
     def depth(self):
@@ -1689,7 +1691,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
     @depth.setter
     def depth(self, value):
-        self._set_field(self._depth, *value)
+        self._set_field(self._depth, value)
 
     def parse_fields(self, bstr, header):
         super().parse_fields(bstr, header)
@@ -1735,7 +1737,7 @@ class SimpleTextSampleEntryBoxFieldsList(PlainTextSampleEntry):
 
     @content_encoding.setter
     def content_encoding(self, value):
-        self._set_field(self._content_encoding, *value)
+        self._set_field(self._content_encoding, value)
 
     @property
     def mime_format(self):
@@ -1743,7 +1745,7 @@ class SimpleTextSampleEntryBoxFieldsList(PlainTextSampleEntry):
 
     @mime_format.setter
     def mime_format(self, value):
-        self._set_field(self._mime_format, *value)
+        self._set_field(self._mime_format, value)
 
     def parse_fields(self, bstr, header):
         super().parse_fields(bstr, header)
@@ -1772,7 +1774,7 @@ class TextMetaDataSampleEntryBoxFieldsList(MetaDataSampleEntryBoxFieldsList):
 
     @content_encoding.setter
     def content_encoding(self, value):
-        self._set_field(self._content_encoding, *value)
+        self._set_field(self._content_encoding, value)
 
     @property
     def mime_format(self):
@@ -1780,7 +1782,7 @@ class TextMetaDataSampleEntryBoxFieldsList(MetaDataSampleEntryBoxFieldsList):
 
     @mime_format.setter
     def mime_format(self, value):
-        self._set_field(self._mime_format, *value)
+        self._set_field(self._mime_format, value)
 
     def parse_fields(self, bstr, header):
         super().parse_fields(bstr, header)
@@ -1809,7 +1811,7 @@ class TextSubtitleSampleEntryBoxFieldsList(SubtitleSampleEntryBoxFieldsList):
 
     @content_encoding.setter
     def content_encoding(self, value):
-        self._set_field(self._content_encoding, *value)
+        self._set_field(self._content_encoding, value)
 
     @property
     def mime_format(self):
@@ -1817,7 +1819,7 @@ class TextSubtitleSampleEntryBoxFieldsList(SubtitleSampleEntryBoxFieldsList):
 
     @mime_format.setter
     def mime_format(self, value):
-        self._set_field(self._mime_format, *value)
+        self._set_field(self._mime_format, value)
 
     def parse_fields(self, bstr, header):
         super().parse_fields(bstr, header)
@@ -1840,7 +1842,7 @@ class DataEntryUrlBoxFieldsList(AbstractFieldsList):
 
     @location.setter
     def location(self, value):
-        self._set_field(self._location, *value)
+        self._set_field(self._location, value)
 
     def parse_fields(self, bstr, header):
         # It seams that location can be empty (0 bytes) based on the result in
@@ -1862,7 +1864,7 @@ class DataEntryUrnBoxFieldsList(AbstractFieldsList):
 
     @location.setter
     def location(self, value):
-        self._set_field(self._location, *value)
+        self._set_field(self._location, value)
 
     @property
     def name(self):
@@ -1870,7 +1872,7 @@ class DataEntryUrnBoxFieldsList(AbstractFieldsList):
 
     @name.setter
     def name(self, value):
-        self._set_field(self._name, *value)
+        self._set_field(self._name, value)
 
     def parse_fields(self, bstr, header):
         end = header.start_pos + header.box_size
@@ -1910,7 +1912,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @item_id.setter
     def item_id(self, value):
-        self._set_field(self._item_id, *value)
+        self._set_field(self._item_id, value)
 
     @property
     def item_protection_index(self):
@@ -1918,7 +1920,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @item_protection_index.setter
     def item_protection_index(self, value):
-        self._set_field(self._item_protection_index, *value)
+        self._set_field(self._item_protection_index, value)
 
     @property
     def item_type(self):
@@ -1926,7 +1928,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @item_type.setter
     def item_type(self, value):
-        self._set_field(self._item_type, *value)
+        self._set_field(self._item_type, value)
 
     @property
     def item_name(self):
@@ -1934,7 +1936,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @item_name.setter
     def item_name(self, value):
-        self._set_field(self._item_name, *value)
+        self._set_field(self._item_name, value)
 
     @property
     def item_uri_type(self):
@@ -1942,7 +1944,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @item_uri_type.setter
     def item_uri_type(self, value):
-        self._set_field(self._item_uri_type, *value)
+        self._set_field(self._item_uri_type, value)
 
     @property
     def content_type(self):
@@ -1950,7 +1952,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @content_type.setter
     def content_type(self, value):
-        self._set_field(self._content_type, *value)
+        self._set_field(self._content_type, value)
 
     @property
     def content_encoding(self):
@@ -1958,7 +1960,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @content_encoding.setter
     def content_encoding(self, value):
-        self._set_field(self._content_encoding, *value)
+        self._set_field(self._content_encoding, value)
 
     @property
     def extension_type(self):
@@ -1966,7 +1968,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
 
     @extension_type.setter
     def extension_type(self, value):
-        self._set_field(self._extension_type, *value)
+        self._set_field(self._extension_type, value)
 
     def parse_fields(self, bstr, header):
         if header.version == 2:
@@ -2026,7 +2028,7 @@ class PixelAspectRatioBoxFieldsList(AbstractFieldsList):
 
     @h_spacing.setter
     def h_spacing(self, value):
-        self._set_field(self._h_spacing, *value)
+        self._set_field(self._h_spacing, value)
 
     @property
     def v_spacing(self):
@@ -2034,7 +2036,7 @@ class PixelAspectRatioBoxFieldsList(AbstractFieldsList):
 
     @v_spacing.setter
     def v_spacing(self, value):
-        self._set_field(self._v_spacing, *value)
+        self._set_field(self._v_spacing, value)
 
     def parse_fields(self, bstr, header):
         del header
@@ -2072,7 +2074,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @clean_aperture_width_n.setter
     def clean_aperture_width_n(self, value):
-        self._set_field(self._clean_aperture_width_n, *value)
+        self._set_field(self._clean_aperture_width_n, value)
 
     @property
     def clean_aperture_width_d(self):
@@ -2080,7 +2082,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @clean_aperture_width_d.setter
     def clean_aperture_width_d(self, value):
-        self._set_field(self._clean_aperture_width_d, *value)
+        self._set_field(self._clean_aperture_width_d, value)
 
     @property
     def clean_aperture_height_n(self):
@@ -2088,7 +2090,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @clean_aperture_height_n.setter
     def clean_aperture_height_n(self, value):
-        self._set_field(self._clean_aperture_height_n, *value)
+        self._set_field(self._clean_aperture_height_n, value)
 
     @property
     def clean_aperture_height_d(self):
@@ -2096,7 +2098,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @clean_aperture_height_d.setter
     def clean_aperture_height_d(self, value):
-        self._set_field(self._clean_aperture_height_d, *value)
+        self._set_field(self._clean_aperture_height_d, value)
 
     @property
     def horiz_off_n(self):
@@ -2104,7 +2106,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @horiz_off_n.setter
     def horiz_off_n(self, value):
-        self._set_field(self._horiz_off_n, *value)
+        self._set_field(self._horiz_off_n, value)
 
     @property
     def horiz_off_d(self):
@@ -2112,7 +2114,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @horiz_off_d.setter
     def horiz_off_d(self, value):
-        self._set_field(self._horiz_off_d, *value)
+        self._set_field(self._horiz_off_d, value)
 
     @property
     def vert_off_n(self):
@@ -2120,7 +2122,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @vert_off_n.setter
     def vert_off_n(self, value):
-        self._set_field(self._vert_off_n, *value)
+        self._set_field(self._vert_off_n, value)
 
     @property
     def vert_off_d(self):
@@ -2128,7 +2130,7 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
 
     @vert_off_d.setter
     def vert_off_d(self, value):
-        self._set_field(self._vert_off_d, *value)
+        self._set_field(self._vert_off_d, value)
 
     def parse_fields(self, bstr, header):
         del header

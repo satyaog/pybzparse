@@ -10,8 +10,8 @@ def test_header_fields_list():
     bs = pack("uintbe:32, bytes:4", 100, b"abcd")
 
     fields_list = flists.BoxHeaderFieldsList()
-    fields_list.box_size = (100,)
-    fields_list.box_type = (b'abcd',)
+    fields_list.box_size = 100
+    fields_list.box_type = b'abcd'
 
     assert fields_list.box_size == 100
     assert fields_list.box_type == b"abcd"
@@ -21,6 +21,21 @@ def test_header_fields_list():
 
 
 def test_header_extended_fields_list():
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", MAX_UINT_32 + 1)
+
+    fields_list = flists.BoxHeaderFieldsList()
+    fields_list.box_size = 1
+    fields_list.box_type = b"abcd"
+    fields_list.box_ext_size = MAX_UINT_32 + 1
+
+    assert fields_list.box_size == 1
+    assert fields_list.box_type == b"abcd"
+    assert fields_list.box_ext_size == MAX_UINT_32 + 1
+    assert fields_list.user_type is None
+    assert bytes(fields_list) == bs.bytes
+
+
+def test_header_extended_fields_list_w_no_type():
     bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", MAX_UINT_32 + 1)
 
     fields_list = flists.BoxHeaderFieldsList()
@@ -40,9 +55,9 @@ def test_header_user_type_fields_list():
               b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
 
     fields_list = flists.BoxHeaderFieldsList()
-    fields_list.box_size = (100,)
-    fields_list.box_type = (b"uuid",)
-    fields_list.user_type = (b":benzina\x00\x00\x00\x00\x00\x00\x00\x00",)
+    fields_list.box_size = 100
+    fields_list.box_type = b"uuid"
+    fields_list.user_type = b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
 
     assert fields_list.box_size == 100
     assert fields_list.box_type == b"uuid"
@@ -56,10 +71,10 @@ def test_header_extended_user_type_fields_list():
               MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
 
     fields_list = flists.BoxHeaderFieldsList()
-    fields_list.box_size = (1,)
-    fields_list.box_type = (b"uuid",)
-    fields_list.box_ext_size = (MAX_UINT_32 + 1,)
-    fields_list.user_type = (b":benzina\x00\x00\x00\x00\x00\x00\x00\x00",)
+    fields_list.box_size = 1
+    fields_list.box_type = b"uuid"
+    fields_list.box_ext_size = MAX_UINT_32 + 1
+    fields_list.user_type = b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"uuid"
@@ -68,10 +83,10 @@ def test_header_extended_user_type_fields_list():
     assert bytes(fields_list) == bs.bytes
 
     fields_list = flists.BoxHeaderFieldsList()
-    fields_list.box_ext_size = (MAX_UINT_32 + 1,)
-    fields_list.user_type = (b":benzina\x00\x00\x00\x00\x00\x00\x00\x00",)
-    fields_list.box_type = (b"uuid",)
-    fields_list.box_size = (1,)
+    fields_list.box_ext_size = MAX_UINT_32 + 1
+    fields_list.user_type = b":benzina\x00\x00\x00\x00\x00\x00\x00\x00"
+    fields_list.box_type = b"uuid"
+    fields_list.box_size = 1
 
     assert fields_list.box_size == 1
     assert fields_list.box_type == b"uuid"
@@ -174,8 +189,8 @@ def test_full_box_header():
     full_box_header = FullBoxHeader()
     full_box_header.type = b"abcd"
     full_box_header.box_size = 100
-    full_box_header.version = (1,)
-    full_box_header.flags = (b"\x00\x00\x07",)
+    full_box_header.version = 1
+    full_box_header.flags = b"\x00\x00\x07"
     full_box_header.refresh_cache()
 
     assert full_box_header.type == b"abcd"
@@ -188,9 +203,9 @@ def test_full_box_header():
     assert bytes(full_box_header) == bs.bytes
 
     full_box_header = FullBoxHeader()
-    full_box_header.flags = (b"\x00\x00\x07",)
+    full_box_header.flags = b"\x00\x00\x07"
     full_box_header.type = b"abcd"
-    full_box_header.version = (1,)
+    full_box_header.version = 1
     full_box_header.box_size = 100
     full_box_header.refresh_cache()
 
@@ -209,9 +224,9 @@ def test_full_box_header_w_drop():
               100, b"abcd", 1, b"\x00\x00\x07")
 
     full_box_header = FullBoxHeader()
-    full_box_header.flags = (b"\x00\x00\x07",)
+    full_box_header.flags = b"\x00\x00\x07"
     full_box_header.type = b"uuid:benzina\x00\x00\x00\x00\x00\x00\x00\x00"
-    full_box_header.version = (1,)
+    full_box_header.version = 1
     full_box_header.box_size = MAX_UINT_32 + 1
 
     full_box_header.type = b"abcd"
@@ -229,6 +244,34 @@ def test_full_box_header_w_drop():
 
 
 def test_ftyp_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "bytes:4, uintbe:32, bytes:8",
+              24, b"ftyp",
+              b"bzna", 10, b"mp42mp41")
+
+    box_header = BoxHeader()
+    ftyp = bx_def.FTYP(box_header)
+    ftyp.header.type = b"ftyp"
+    ftyp.major_brand = 1652190817           # b"bzna"
+    ftyp.minor_version = 10
+    ftyp.compatible_brands = [1836069938,   # b"mp42"
+                              1836069937]   # b"mp41"
+    ftyp.refresh_box_size()
+
+    box = ftyp
+
+    assert box.header.type == b"ftyp"
+    assert box.header.box_size == 24
+    assert box.major_brand == 1652190817            # b"bzna"
+    assert box.minor_version == 10
+    assert box.compatible_brands == [1836069938,    # b"mp42"
+                                     1836069937]    # b"mp41"
+
+    assert bytes(next(Parser.parse(bs))) == bs.bytes
+    assert bytes(box) == bs.bytes
+
+
+def test_ftyp_box_w_no_type():
     bs = pack("uintbe:32, bytes:4, "
               "bytes:4, uintbe:32, bytes:8",
               24, b"ftyp",
@@ -276,21 +319,21 @@ def test_mvhd_box_v0():
     mvhd = bx_def.MVHD(box_header)
 
     mvhd.header.type = b"mvhd"
-    mvhd.header.version = (0,)
-    mvhd.header.flags = (b"\x00\x00\x00",)
+    mvhd.header.version = 0
+    mvhd.header.flags = b"\x00\x00\x00"
 
     mvhd.creation_time = (3596199850, "uintbe:32")
     mvhd.modification_time = (3596199850, "uintbe:32")
     mvhd.timescale = (48000, "uintbe:32")
     mvhd.duration = (6720608, "uintbe:32")
 
-    mvhd.rate = ([1, 0],)
-    mvhd.volume = ([1, 0],)
+    mvhd.rate = [1, 0]
+    mvhd.volume = [1, 0]
 
-    mvhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
-    mvhd.pre_defined = ([b"\x00" * 4] * 6,)
+    mvhd.matrix = [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+    mvhd.pre_defined = [b"\x00" * 4] * 6
 
-    mvhd.next_track_id = (3,)
+    mvhd.next_track_id = 3
 
     mvhd.refresh_box_size()
 
@@ -338,21 +381,21 @@ def test_mvhd_box_v1():
     mvhd = bx_def.MVHD(box_header)
 
     mvhd.header.type = b"mvhd"
-    mvhd.header.version = (1,)
-    mvhd.header.flags = (b"\x00\x00\x00",)
+    mvhd.header.version = 1
+    mvhd.header.flags = b"\x00\x00\x00"
 
-    mvhd.creation_time = (3596199850,)
-    mvhd.modification_time = (3596199850,)
-    mvhd.timescale = (48000,)
-    mvhd.duration = (6720608,)
+    mvhd.creation_time = 3596199850
+    mvhd.modification_time = 3596199850
+    mvhd.timescale = 48000
+    mvhd.duration = 6720608
 
-    mvhd.rate = ([1, 0],)
-    mvhd.volume = ([1, 0],)
+    mvhd.rate = [1, 0]
+    mvhd.volume = [1, 0]
 
-    mvhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
-    mvhd.pre_defined = ([b"\x00" * 4] * 6,)
+    mvhd.matrix = [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
+    mvhd.pre_defined = [b"\x00" * 4] * 6
 
-    mvhd.next_track_id = (3,)
+    mvhd.next_track_id = 3
 
     mvhd.refresh_box_size()
 
@@ -404,22 +447,22 @@ def test_tkhd_box_v0():
     tkhd = bx_def.TKHD(box_header)
 
     tkhd.header.type = b"tkhd"
-    tkhd.header.version = (0,)
-    tkhd.header.flags = (b"\x00\x00\x07",)
+    tkhd.header.version = 0
+    tkhd.header.flags = b"\x00\x00\x07"
 
     tkhd.creation_time = (3596199850, "uintbe:32")
     tkhd.modification_time = (3596199850, "uintbe:32")
     tkhd.track_id = (1, "uintbe:32")
     tkhd.duration = (6720313, "uintbe:32")
 
-    tkhd.layer = (0,)
-    tkhd.alternate_group = (0,)
-    tkhd.volume = ([0, 0],)
+    tkhd.layer = 0
+    tkhd.alternate_group = 0
+    tkhd.volume = [0, 0]
 
-    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+    tkhd.matrix = [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
 
-    tkhd.width = ([318, 0],)
-    tkhd.height = ([180, 0],)
+    tkhd.width = [318, 0]
+    tkhd.height = [180, 0]
 
     tkhd.refresh_box_size()
 
@@ -474,22 +517,22 @@ def test_tkhd_box_v1():
     tkhd = bx_def.TKHD(box_header)
 
     tkhd.header.type = b"tkhd"
-    tkhd.header.version = (1,)
-    tkhd.header.flags = (b"\x00\x00\x07",)
+    tkhd.header.version = 1
+    tkhd.header.flags = b"\x00\x00\x07"
 
-    tkhd.creation_time = (3596199850,)
-    tkhd.modification_time = (3596199850,)
-    tkhd.track_id = (1,)
-    tkhd.duration = (6720313,)
+    tkhd.creation_time = 3596199850
+    tkhd.modification_time = 3596199850
+    tkhd.track_id = 1
+    tkhd.duration = 6720313
 
-    tkhd.layer = (0,)
-    tkhd.alternate_group = (0,)
-    tkhd.volume = ([0, 0],)
+    tkhd.layer = 0
+    tkhd.alternate_group = 0
+    tkhd.volume = [0, 0]
 
-    tkhd.matrix = ([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824],)
+    tkhd.matrix = [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824]
 
-    tkhd.width = ([318, 0],)
-    tkhd.height = ([180, 0],)
+    tkhd.width = [318, 0]
+    tkhd.height = [180, 0]
 
     tkhd.refresh_box_size()
 
@@ -534,16 +577,16 @@ def test_mdhd_box_v0():
     mdhd = bx_def.MDHD(box_header)
 
     mdhd.header.type = b"mdhd"
-    mdhd.header.version = (0,)
-    mdhd.header.flags = (b"\x00\x00\x00",)
+    mdhd.header.version = 0
+    mdhd.header.flags = b"\x00\x00\x00"
 
     mdhd.creation_time = (3596199850, "uintbe:32")
     mdhd.modification_time = (3596199850, "uintbe:32")
     mdhd.timescale = (30000, "uintbe:32")
     mdhd.duration = (4200196, "uintbe:32")
 
-    mdhd.language = ([21, 14, 4],)
-    mdhd.pre_defined = (0,)
+    mdhd.language = [21, 14, 4]
+    mdhd.pre_defined = 0
 
     mdhd.refresh_box_size()
 
@@ -580,16 +623,16 @@ def test_mdhd_box_v1():
     mdhd = bx_def.MDHD(box_header)
 
     mdhd.header.type = b"mdhd"
-    mdhd.header.version = (1,)
-    mdhd.header.flags = (b"\x00\x00\x00",)
+    mdhd.header.version = 1
+    mdhd.header.flags = b"\x00\x00\x00"
 
-    mdhd.creation_time = (3596199850,)
-    mdhd.modification_time = (3596199850,)
-    mdhd.timescale = (30000,)
-    mdhd.duration = (4200196,)
+    mdhd.creation_time = 3596199850
+    mdhd.modification_time = 3596199850
+    mdhd.timescale = 30000
+    mdhd.duration = 4200196
 
-    mdhd.language = ([21, 14, 4],)
-    mdhd.pre_defined = (0,)
+    mdhd.language = [21, 14, 4]
+    mdhd.pre_defined = 0
 
     mdhd.refresh_box_size()
 
@@ -622,12 +665,12 @@ def test_hdlr_box():
     hdlr = bx_def.HDLR(box_header)
 
     hdlr.header.type = b"hdlr"
-    hdlr.header.version = (0,)
-    hdlr.header.flags = (b"\x00\x00\x00",)
+    hdlr.header.version = 0
+    hdlr.header.flags = b"\x00\x00\x00"
 
-    hdlr.pre_defined = (0,)
-    hdlr.handler_type = (b"vide",)
-    hdlr.name = (b"Vireo Eyes v2.4.22\0",)
+    hdlr.pre_defined = 0
+    hdlr.handler_type = b"vide"
+    hdlr.name = b"Vireo Eyes v2.4.22\0"
 
     hdlr.refresh_box_size()
 
@@ -656,14 +699,14 @@ def test_elst_box_v0():
     elst = bx_def.ELST(box_header)
 
     elst.header.type = b"elst"
-    elst.header.version = (0,)
-    elst.header.flags = (b"\x00\x00\x00",)
+    elst.header.version = 0
+    elst.header.flags = b"\x00\x00\x00"
 
     entry = elst.append_and_return()
     entry.segment_duration = (3000, "uintbe:32")
     entry.media_time = (0, "uintbe:32")
-    entry.media_rate_integer = (1,)
-    entry.media_rate_fraction = (0,)
+    entry.media_rate_integer = 1
+    entry.media_rate_fraction = 0
 
     elst.refresh_box_size()
 
@@ -697,14 +740,14 @@ def test_elst_box_v1():
     elst = bx_def.ELST(box_header)
 
     elst.header.type = b"elst"
-    elst.header.version = (1,)
-    elst.header.flags = (b"\x00\x00\x00",)
+    elst.header.version = 1
+    elst.header.flags = b"\x00\x00\x00"
 
     entry = elst.append_and_return()
-    entry.segment_duration = (3000,)
-    entry.media_time = (0,)
-    entry.media_rate_integer = (1,)
-    entry.media_rate_fraction = (0,)
+    entry.segment_duration = 3000
+    entry.media_time = 0
+    entry.media_rate_integer = 1
+    entry.media_rate_fraction = 0
 
     elst.refresh_box_size()
 
@@ -738,11 +781,11 @@ def test_vmhd_box():
     vmhd = bx_def.VMHD(box_header)
 
     vmhd.header.type = b"vmhd"
-    vmhd.header.version = (0,)
-    vmhd.header.flags = (b"\x00\x00\x01",)
+    vmhd.header.version = 0
+    vmhd.header.flags = b"\x00\x00\x01"
 
-    vmhd.graphicsmode = (0,)
-    vmhd.opcolor = ([0, 0, 0],)
+    vmhd.graphicsmode = 0
+    vmhd.opcolor = [0, 0, 0]
 
     vmhd.refresh_box_size()
 
@@ -768,8 +811,8 @@ def test_nmhd_box():
     nmhd = bx_def.NMHD(box_header)
 
     nmhd.header.type = b"nmhd"
-    nmhd.header.version = (0,)
-    nmhd.header.flags = (b"\x00\x00\x00",)
+    nmhd.header.version = 0
+    nmhd.header.flags = b"\x00\x00\x00"
 
     nmhd.refresh_box_size()
 
@@ -792,10 +835,10 @@ def test_stsd_box():
     stsd = bx_def.STSD(box_header)
 
     stsd.header.type = b"stsd"
-    stsd.header.version = (0,)
-    stsd.header.flags = (b"\x00\x00\x00",)
+    stsd.header.version = 0
+    stsd.header.flags = b"\x00\x00\x00"
 
-    stsd.entry_count = (1,)
+    stsd.entry_count = 1
 
     stsd.refresh_box_size()
 
@@ -821,12 +864,12 @@ def test_stts_box():
     stts = bx_def.STTS(box_header)
 
     stts.header.type = b"stts"
-    stts.header.version = (0,)
-    stts.header.flags = (b"\x00\x00\x00",)
+    stts.header.version = 0
+    stts.header.flags = b"\x00\x00\x00"
 
     entry = stts.append_and_return()
-    entry.sample_count = (1,)
-    entry.sample_delta = (1,)
+    entry.sample_count = 1
+    entry.sample_delta = 1
 
     stts.refresh_box_size()
 
@@ -858,12 +901,12 @@ def test_ctts_box_v0():
     ctts = bx_def.CTTS(box_header)
 
     ctts.header.type = b"ctts"
-    ctts.header.version = (0,)
-    ctts.header.flags = (b"\x00\x00\x00",)
+    ctts.header.version = 0
+    ctts.header.flags = b"\x00\x00\x00"
 
     entry = ctts.append_and_return()
-    entry.sample_count = (1,)
-    entry.sample_offset = (1,)
+    entry.sample_count = 1
+    entry.sample_offset = 1
 
     ctts.refresh_box_size()
 
@@ -895,11 +938,11 @@ def test_ctts_box_v1():
     ctts = bx_def.CTTS(box_header)
 
     ctts.header.type = b"ctts"
-    ctts.header.version = (1,)
-    ctts.header.flags = (b"\x00\x00\x00",)
+    ctts.header.version = 1
+    ctts.header.flags = b"\x00\x00\x00"
 
     entry = ctts.append_and_return()
-    entry.sample_count = (1,)
+    entry.sample_count = 1
     entry.sample_offset = (-1, "intbe:32")
 
     ctts.refresh_box_size()
@@ -932,12 +975,12 @@ def test_stsz_box():
     stsz = bx_def.STSZ(box_header)
 
     stsz.header.type = b"stsz"
-    stsz.header.version = (0,)
-    stsz.header.flags = (b"\x00\x00\x00",)
+    stsz.header.version = 0
+    stsz.header.flags = b"\x00\x00\x00"
 
-    stsz.sample_size = (0,)
+    stsz.sample_size = 0
     sample = stsz.append_and_return()
-    sample.entry_size = (1,)
+    sample.entry_size = 1
 
     stsz.refresh_box_size()
 
@@ -969,13 +1012,13 @@ def test_stsc_box():
     stsc = bx_def.STSC(box_header)
 
     stsc.header.type = b"stsc"
-    stsc.header.version = (0,)
-    stsc.header.flags = (b"\x00\x00\x00",)
+    stsc.header.version = 0
+    stsc.header.flags = b"\x00\x00\x00"
 
     entry = stsc.append_and_return()
-    entry.first_chunk = (1,)
-    entry.samples_per_chunk = (1,)
-    entry.sample_description_index = (1,)
+    entry.first_chunk = 1
+    entry.samples_per_chunk = 1
+    entry.sample_description_index = 1
 
     stsc.refresh_box_size()
 
@@ -1008,11 +1051,11 @@ def test_stco_box():
     stco = bx_def.STCO(box_header)
 
     stco.header.type = b"stco"
-    stco.header.version = (0,)
-    stco.header.flags = (b"\x00\x00\x00",)
+    stco.header.version = 0
+    stco.header.flags = b"\x00\x00\x00"
 
     entry = stco.append_and_return()
-    entry.chunk_offset = (1,)
+    entry.chunk_offset = 1
 
     stco.refresh_box_size()
 
@@ -1041,10 +1084,10 @@ def test_dref_box():
     dref = bx_def.DREF(box_header)
 
     dref.header.type = b"dref"
-    dref.header.version = (0,)
-    dref.header.flags = (b"\x00\x00\x00",)
+    dref.header.version = 0
+    dref.header.flags = b"\x00\x00\x00"
 
-    dref.entry_count = (1,)
+    dref.entry_count = 1
 
     dref.refresh_box_size()
 
@@ -1072,7 +1115,7 @@ def test_sample_entry_box():
     sample_entry_box = bx_def.SampleEntryBox(box_header)
 
     sample_entry_box.header.type = b"____"
-    sample_entry_box.data_reference_index = (1,)
+    sample_entry_box.data_reference_index = 1
 
     sample_entry_box.refresh_box_size()
 
@@ -1110,14 +1153,14 @@ def test_visual_sample_entry_box():
     visual_sample_entry_box = bx_def.VisualSampleEntryBox(box_header)
 
     visual_sample_entry_box.header.type = b"____"
-    visual_sample_entry_box.data_reference_index = (1,)
-    visual_sample_entry_box.width = (512,)
-    visual_sample_entry_box.height = (512,)
-    visual_sample_entry_box.horizresolution = ([72, 0],)
-    visual_sample_entry_box.vertresolution = ([72, 0],)
-    visual_sample_entry_box.frame_count = (1,)
-    visual_sample_entry_box.compressorname = (b'\0' * 32,)
-    visual_sample_entry_box.depth = (24,)
+    visual_sample_entry_box.data_reference_index = 1
+    visual_sample_entry_box.width = 512
+    visual_sample_entry_box.height = 512
+    visual_sample_entry_box.horizresolution = [72, 0]
+    visual_sample_entry_box.vertresolution = [72, 0]
+    visual_sample_entry_box.frame_count = 1
+    visual_sample_entry_box.compressorname = b'\0' * 32
+    visual_sample_entry_box.depth = 24
 
     visual_sample_entry_box.refresh_box_size()
 
@@ -1162,14 +1205,14 @@ def test_avc1_box():
     avc1 = bx_def.AVC1(box_header)
 
     avc1.header.type = b"avc1"
-    avc1.data_reference_index = (1,)
-    avc1.width = (512,)
-    avc1.height = (512,)
-    avc1.horizresolution = ([72, 0],)
-    avc1.vertresolution = ([72, 0],)
-    avc1.frame_count = (1,)
-    avc1.compressorname = (b'\0' * 32,)
-    avc1.depth = (24,)
+    avc1.data_reference_index = 1
+    avc1.width = 512
+    avc1.height = 512
+    avc1.horizresolution = [72, 0]
+    avc1.vertresolution = [72, 0]
+    avc1.frame_count = 1
+    avc1.compressorname = b'\0' * 32
+    avc1.depth = 24
 
     avc1.refresh_box_size()
 
@@ -1207,9 +1250,9 @@ def test_stxt_box():
     stxt = bx_def.STXT(box_header)
 
     stxt.header.type = b"stxt"
-    stxt.data_reference_index = (1,)
-    stxt.content_encoding = (b'\0',)
-    stxt.mime_format = (b'text/plain\0',)
+    stxt.data_reference_index = 1
+    stxt.content_encoding = b'\0'
+    stxt.mime_format = b'text/plain\0'
 
     stxt.refresh_box_size()
 
@@ -1242,9 +1285,9 @@ def test_mett_box():
     mett = bx_def.METT(box_header)
 
     mett.header.type = b"mett"
-    mett.data_reference_index = (1,)
-    mett.content_encoding = (b'\0',)
-    mett.mime_format = (b'image/heif\0',)
+    mett.data_reference_index = 1
+    mett.content_encoding = b'\0'
+    mett.mime_format = b'image/heif\0'
 
     mett.refresh_box_size()
 
@@ -1277,9 +1320,9 @@ def test_sbtt_box():
     stxt = bx_def.STXT(box_header)
 
     stxt.header.type = b"sbtt"
-    stxt.data_reference_index = (1,)
-    stxt.content_encoding = (b'\0',)
-    stxt.mime_format = (b'text/plain\0',)
+    stxt.data_reference_index = 1
+    stxt.content_encoding = b'\0'
+    stxt.mime_format = b'text/plain\0'
 
     stxt.refresh_box_size()
 
@@ -1306,8 +1349,8 @@ def test_url__box():
     url_ = bx_def.URL_(box_header)
 
     url_.header.type = b"url "
-    url_.header.version = (0,)
-    url_.header.flags = (b"\x00\x00\x01",)
+    url_.header.version = 0
+    url_.header.flags = b"\x00\x00\x01"
 
     url_.refresh_box_size()
 
@@ -1332,8 +1375,8 @@ def test_pasp_box():
     pasp = bx_def.PASP(box_header)
     pasp.header.type = b"pasp"
 
-    pasp.h_spacing = (150,)
-    pasp.v_spacing = (157,)
+    pasp.h_spacing = 150
+    pasp.v_spacing = 157
 
     pasp.refresh_box_size()
 
@@ -1360,14 +1403,14 @@ def test_clap_box():
     clap = bx_def.CLAP(box_header)
     clap.header.type = b"clap"
 
-    clap.clean_aperture_width_n = (500,)
-    clap.clean_aperture_width_d = (1,)
-    clap.clean_aperture_height_n = (333,)
-    clap.clean_aperture_height_d = (1,)
-    clap.horiz_off_n = (-12,)
-    clap.horiz_off_d = (2,)
-    clap.vert_off_n = (-179,)
-    clap.vert_off_d = (2,)
+    clap.clean_aperture_width_n = 500
+    clap.clean_aperture_width_d = 1
+    clap.clean_aperture_height_n = 333
+    clap.clean_aperture_height_d = 1
+    clap.horiz_off_n = -12
+    clap.horiz_off_d = 2
+    clap.vert_off_n = -179
+    clap.vert_off_d = 2
 
     clap.refresh_box_size()
 

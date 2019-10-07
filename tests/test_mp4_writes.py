@@ -15,10 +15,10 @@ def test_mp4_dataset():
     # FTYP
     ftyp = bx_def.FTYP(BoxHeader())
     ftyp.header.type = b"ftyp"
-    ftyp.major_brand = (1769172845,)            # b"isom"
-    ftyp.minor_version = (0,)
-    ftyp.compatible_brands = ([1652190817,      # b"bzna"
-                               1769172845],)    # b"isom"
+    ftyp.major_brand = 1769172845           # b"isom"
+    ftyp.minor_version = 0
+    ftyp.compatible_brands = [1652190817,   # b"bzna"
+                              1769172845]   # b"isom"
 
     ftyp.refresh_box_size()
 
@@ -54,7 +54,7 @@ def test_mp4_dataset():
     data.append((1).to_bytes(8, byteorder="little"))
     data.append((0).to_bytes(8, byteorder="little"))
 
-    mdat.data = (b''.join(data),)
+    mdat.data = b''.join(data)
 
     mdat.refresh_box_size()
 
@@ -68,7 +68,7 @@ def test_mp4_dataset():
     # MOOV.MVHD
     mvhd = make_mvhd(creation_time, modification_time, 3)
     # == total number of tracks
-    mvhd.next_track_id = (5,)
+    mvhd.next_track_id = 5
 
     assert mvhd.next_track_id == 5
 
@@ -87,13 +87,13 @@ def test_mp4_dataset():
     # "\x00\x00\x02" trak is used in the presentation
     # "\x00\x00\x04" trak is used in the preview
     # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
-    tkhd.header.flags = (b"\x00\x00\x03",)
+    tkhd.header.flags = b"\x00\x00\x03"
 
-    tkhd.track_id = (1,)
+    tkhd.track_id = 1
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([512, 0],)
-    tkhd.height = ([512, 0],)
+    tkhd.width = [512, 0]
+    tkhd.height = [512, 0]
 
     tkhd.refresh_box_size()
 
@@ -128,8 +128,8 @@ def test_mp4_dataset():
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
     avc1 = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0].boxes[0]
-    avc1.width = (512,)
-    avc1.height = (512,)
+    avc1.width = 512
+    avc1.height = 512
 
     assert avc1.header.type == b"avc1"
     assert avc1.width == 512
@@ -148,13 +148,13 @@ def test_mp4_dataset():
     # "\x00\x00\x02" trak is used in the presentation
     # "\x00\x00\x04" trak is used in the preview
     # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
-    tkhd.header.flags = (b"\x00\x00\x00",)
+    tkhd.header.flags = b"\x00\x00\x00"
 
-    tkhd.track_id = (2,)
+    tkhd.track_id = 2
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([0, 0],)
-    tkhd.height = ([0, 0],)
+    tkhd.width = [0, 0]
+    tkhd.height = [0, 0]
 
     tkhd.refresh_box_size()
 
@@ -189,8 +189,8 @@ def test_mp4_dataset():
 
     # MOOV.TRAK.MDIA.MDHD
     mdhd = trak.boxes[-1].boxes[0]
-    mdhd.timescale = (20,)
-    mdhd.duration = (60,)
+    mdhd.timescale = 20
+    mdhd.duration = 60
 
     mdhd.refresh_box_size()
 
@@ -211,7 +211,7 @@ def test_mp4_dataset():
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.METT
     mett = trak.boxes[-1].boxes[-1].boxes[-1].boxes[0].boxes[0]
-    mett.mime_format = (b'video/h264\0',)
+    mett.mime_format = b'video/h264\0'
     mett.refresh_box_size()
 
     assert mett.header.type == b"mett"
@@ -233,13 +233,13 @@ def test_mp4_dataset():
     # "\x00\x00\x02" trak is used in the presentation
     # "\x00\x00\x04" trak is used in the preview
     # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
-    tkhd.header.flags = (b"\x00\x00\x00",)
+    tkhd.header.flags = b"\x00\x00\x00"
 
-    tkhd.track_id = (3,)
+    tkhd.track_id = 3
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([0, 0],)
-    tkhd.height = ([0, 0],)
+    tkhd.width = [0, 0]
+    tkhd.height = [0, 0]
 
     tkhd.refresh_box_size()
 
@@ -274,8 +274,8 @@ def test_mp4_dataset():
 
     # MOOV.TRAK.MDIA.MDHD
     mdhd = trak.boxes[-1].boxes[0]
-    mdhd.timescale = (20,)
-    mdhd.duration = (60,)
+    mdhd.timescale = 20
+    mdhd.duration = 60
 
     mdhd.refresh_box_size()
 
@@ -309,13 +309,13 @@ def test_mp4_dataset():
     # "\x00\x00\x02" trak is used in the presentation
     # "\x00\x00\x04" trak is used in the preview
     # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
-    tkhd.header.flags = (b"\x00\x00\x00",)
+    tkhd.header.flags = b"\x00\x00\x00"
 
-    tkhd.track_id = (4,)
+    tkhd.track_id = 4
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([0, 0],)
-    tkhd.height = ([0, 0],)
+    tkhd.width = [0, 0]
+    tkhd.height = [0, 0]
 
     tkhd.refresh_box_size()
 
@@ -350,8 +350,8 @@ def test_mp4_dataset():
 
     # MOOV.TRAK.MDIA.MDHD
     mdhd = trak.boxes[-1].boxes[0]
-    mdhd.timescale = (20,)
-    mdhd.duration = (60,)
+    mdhd.timescale = 20
+    mdhd.duration = 60
 
     mdhd.refresh_box_size()
 
@@ -436,9 +436,9 @@ def test_mp4_small_vid():
     # FTYP
     ftyp = bx_def.FTYP(BoxHeader())
     ftyp.header.type = b"ftyp"
-    ftyp.major_brand = (1836069937,)                # b"mp41"
-    ftyp.minor_version = (0,)
-    ftyp.compatible_brands = ([1836069937],)        # b'mp41'
+    ftyp.major_brand = 1836069937                # b"mp41"
+    ftyp.minor_version = 0
+    ftyp.compatible_brands = [1836069937]        # b'mp41'
 
     ftyp.refresh_box_size()
 
@@ -465,7 +465,7 @@ def test_mp4_small_vid():
     with open("tests/data/small_vid_mdat_im2", "rb") as f:
         data.append(f.read())
 
-    mdat.data = (b''.join(data),)
+    mdat.data = b''.join(data)
 
     mdat.refresh_box_size()
 
@@ -479,7 +479,7 @@ def test_mp4_small_vid():
     # MOOV.MVHD
     mvhd = make_mvhd(creation_time, modification_time, 3)
     # == total number of tracks
-    mvhd.next_track_id = (2,)
+    mvhd.next_track_id = 2
 
     assert mvhd.next_track_id == 2
 
@@ -498,13 +498,13 @@ def test_mp4_small_vid():
     # "\x00\x00\x02" trak is used in the presentation
     # "\x00\x00\x04" trak is used in the preview
     # "\x00\x00\x08" trak size in not in pixel but in aspect ratio
-    tkhd.header.flags = (b"\x00\x00\x03",)
+    tkhd.header.flags = b"\x00\x00\x03"
 
-    tkhd.track_id = (1,)
+    tkhd.track_id = 1
 
     # TODO: make sure that this is the canvas size
-    tkhd.width = ([512, 0],)
-    tkhd.height = ([512, 0],)
+    tkhd.width = [512, 0]
+    tkhd.height = [512, 0]
 
     tkhd.refresh_box_size()
 
@@ -539,8 +539,8 @@ def test_mp4_small_vid():
 
     # MOOV.TRAK.MDIA.MDHD
     mdhd = trak.boxes[-1].boxes[0]
-    mdhd.timescale = (20,)
-    mdhd.duration = (60,)
+    mdhd.timescale = 20
+    mdhd.duration = 60
 
     mdhd.refresh_box_size()
 
@@ -567,8 +567,8 @@ def test_mp4_small_vid():
 
     # MOOV.TRAK.MDIA.MINF.STBL.STSD.AVC1
     avc1 = stsd.boxes[0]
-    avc1.width = (512,)
-    avc1.height = (512,)
+    avc1.width = 512
+    avc1.height = 512
 
     assert avc1.header.type == b"avc1"
     assert avc1.width == 512
@@ -610,7 +610,7 @@ def test_mp4_small_vid():
     #     stsz = mdia.boxes[2].boxes[2].boxes[3]
     #     # trak.mdia.minf.stbl.stco
     #     stco = mdia.boxes[2].boxes[2].boxes[4]
-    #     stco.entries[0].chunk_offset = (40,)
+    #     stco.entries[0].chunk_offset = 40
     # with open("tests/data/small_vid_no_free_no_moov_udta.mp4", "wb") as f:
     #     f.write(b''.join(bytes(box) for box in boxes))
     #
