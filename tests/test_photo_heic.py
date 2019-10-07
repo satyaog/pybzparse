@@ -7,7 +7,7 @@ from pybzparse.boxes import UnknownBox, SingleItemTypeReferenceBox
 
 
 def test_photo_heic_guided_parsing():
-    bstr = ConstBitStream(filename="data/photo.heic")
+    bstr = ConstBitStream(filename="tests/data/photo.heic")
 
     box_header = Parser.parse_header(bstr)
     ftyp = bx_def.FTYP.parse_box(bstr, box_header)
@@ -480,7 +480,7 @@ def test_photo_heic_guided_parsing():
 
 
 def test_photo_heic_parsing():
-    bstr = ConstBitStream(filename="data/photo.heic")
+    bstr = ConstBitStream(filename="tests/data/photo.heic")
 
     meta = None
 
@@ -940,7 +940,7 @@ def test_photo_heic_parsing():
 
 
 def test_photo_heic_bytes():
-    bstr = ConstBitStream(filename="data/photo.heic")
+    bstr = ConstBitStream(filename="tests/data/photo.heic")
     boxes = [box for box in Parser.parse(bstr)]
 
     assert b''.join([bytes(box) for box in boxes]) != bstr.bytes

@@ -17,6 +17,7 @@ setup(
     description="MP4 / ISO base media file format (ISO/IEC 14496-12 - MPEG-4 Part 12) file parser",
     requires=["bitstring"],
     install_requires=["bitstring"],
+    setup_requires=["pytest-runner"],
     tests_require=["pytest"],
     long_description=long_description,
     data_files=[("", ["README.md"])]

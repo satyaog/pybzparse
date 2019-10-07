@@ -39,11 +39,11 @@ def test_mp4_dataset():
 
     data = []
 
-    with open("data/small_vid_mdat_im0", "rb") as f:
+    with open("tests/data/small_vid_mdat_im0", "rb") as f:
         data.append(f.read())
-    with open("data/small_vid_mdat_im1", "rb") as f:
+    with open("tests/data/small_vid_mdat_im1", "rb") as f:
         data.append(f.read())
-    with open("data/small_vid_mdat_im2", "rb") as f:
+    with open("tests/data/small_vid_mdat_im2", "rb") as f:
         data.append(f.read())
 
     data.append(b"/path/image_1_name.JPEG")
@@ -425,7 +425,7 @@ def test_mp4_dataset():
                     assert mp4_bytes[entry.chunk_offset:sample_end] == \
                            (0).to_bytes(8, byteorder="little")
 
-    with open("data/small_dataset.out.mp4", "rb") as f:
+    with open("tests/data/small_dataset.out.mp4", "rb") as f:
         assert mp4_bytes == f.read()
 
 
@@ -458,11 +458,11 @@ def test_mp4_small_vid():
 
     data = []
 
-    with open("data/small_vid_mdat_im0", "rb") as f:
+    with open("tests/data/small_vid_mdat_im0", "rb") as f:
         data.append(f.read())
-    with open("data/small_vid_mdat_im1", "rb") as f:
+    with open("tests/data/small_vid_mdat_im1", "rb") as f:
         data.append(f.read())
-    with open("data/small_vid_mdat_im2", "rb") as f:
+    with open("tests/data/small_vid_mdat_im2", "rb") as f:
         data.append(f.read())
 
     mdat.data = (b''.join(data),)
@@ -585,10 +585,10 @@ def test_mp4_small_vid():
 
     mp4_bytes = b''.join([bytes(ftyp), bytes(mdat), bytes(moov)])
 
-    with open("data/small_vid.out.mp4", "rb") as f:
+    with open("tests/data/small_vid.out.mp4", "rb") as f:
         assert mp4_bytes == f.read()
 
-    # bstr = ConstBitStream(filename="data/small_vid.mp4")
+    # bstr = ConstBitStream(filename="tests/data/small_vid.mp4")
     #
     # boxes = [box for box in Parser.parse(bstr)]
     # for box in boxes:
@@ -596,7 +596,7 @@ def test_mp4_small_vid():
     # moov = boxes[3]
     # moov.pop()
     # moov.refresh_box_size()
-    # with open("data/small_vid_no_moov_udta.mp4", "wb") as f:
+    # with open("tests/data/small_vid_no_moov_udta.mp4", "wb") as f:
     #     f.write(b''.join(bytes(box) for box in boxes))
     #
     # boxes = [boxes[0]] + boxes[2:]
@@ -611,7 +611,7 @@ def test_mp4_small_vid():
     #     # trak.mdia.minf.stbl.stco
     #     stco = mdia.boxes[2].boxes[2].boxes[4]
     #     stco.entries[0].chunk_offset = (40,)
-    # with open("data/small_vid_no_free_no_moov_udta.mp4", "wb") as f:
+    # with open("tests/data/small_vid_no_free_no_moov_udta.mp4", "wb") as f:
     #     f.write(b''.join(bytes(box) for box in boxes))
     #
     # for box in moov.boxes:
@@ -622,5 +622,5 @@ def test_mp4_small_vid():
     #         box.refresh_box_size()
     #     else:
     #         continue
-    # with open("data/small_vid_no_free_no_moov_udta_no_trak_edts.mp4", "wb") as f:
+    # with open("tests/data/small_vid_no_free_no_moov_udta_no_trak_edts.mp4", "wb") as f:
     #     f.write(b''.join(bytes(box) for box in boxes))

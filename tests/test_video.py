@@ -10,7 +10,7 @@ from pybzparse import Parser
 
 
 def test_video_bytes():
-    bstr = ConstBitStream(filename="data/small_vid.mp4")
+    bstr = ConstBitStream(filename="tests/data/small_vid.mp4")
     boxes = [box for box in Parser.parse(bstr)]
 
     assert b''.join([bytes(box) for box in boxes]) != bstr.bytes
