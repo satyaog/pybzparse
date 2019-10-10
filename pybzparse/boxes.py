@@ -903,6 +903,14 @@ class AVC1SampleEntryBox(VisualSampleEntryBox):
     type = b"avc1"
 
 
+class HEV1SampleEntryBox(VisualSampleEntryBox):
+    type = b"hev1"
+
+
+class HVC1SampleEntryBox(VisualSampleEntryBox):
+    type = b"hvc1"
+
+
 class PlainTextSampleEntryBox(SampleEntryBox):
     type = b"____"
 
@@ -1129,6 +1137,8 @@ IINF = ItemInformationBox
 
 # stsd boxes
 AVC1 = AVC1SampleEntryBox
+HEV1 = HEV1SampleEntryBox
+HVC1 = HVC1SampleEntryBox
 STXT = SimpleTextSampleEntryBox
 METT = TextMetaDataSampleEntryBox
 SBTT = TextSubtitleSampleEntryBox
@@ -1204,6 +1214,8 @@ Parser.register_box(IINF)
 
 # stsd boxes
 Parser.register_box(AVC1)
+Parser.register_box(HEV1)
+Parser.register_box(HVC1)
 Parser.register_box(STXT)
 Parser.register_box(METT)
 Parser.register_box(SBTT)
