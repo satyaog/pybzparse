@@ -146,6 +146,40 @@ def test_ftyp_box():
     assert bytes(box) == bs.bytes
 
 
+def test_mdat_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "bytes:4",
+              12, b"mdat",
+              b"1234")
+
+    box_header = Parser.parse_header(bs)
+    mdat = bx_def.MDAT.parse_box(bs, box_header)
+    mdat.load(bs)
+    box = mdat
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"mdat"
+    assert box.header.box_size == 12
+    assert box.data == b'1234'
+    assert bytes(box) == bs.bytes
+
+
+def test_mdat_box_empty():
+    bs = pack("uintbe:32, bytes:4",
+              8, b"mdat")
+
+    box_header = Parser.parse_header(bs)
+    mdat = bx_def.MDAT.parse_box(bs, box_header)
+    mdat.load(bs)
+    box = mdat
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"mdat"
+    assert box.header.box_size == 8
+    assert box.data == b''
+    assert bytes(box) == bs.bytes
+
+
 def test_mvhd_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
               "uintbe:32, uintbe:32, uintbe:32, uintbe:32, "
