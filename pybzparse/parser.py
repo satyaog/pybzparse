@@ -37,7 +37,7 @@ class Parser(object):
         Parse an MP4 file or bytes into boxes
 
         :param bstr: The bitstring to parse
-        :type bstr: bitstring.ConstBitStream
+        :type bstr: bitstring.BitStream, bitstring.ConstBitStream
         :param filename: Filename of an mp4 file
         :type filename: str
         :param bytes_input: Bytes of an mp4 file

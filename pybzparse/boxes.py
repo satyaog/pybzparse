@@ -108,6 +108,10 @@ class ContainerBox(AbstractBox, MixinDictRepr):
     def boxes(self):
         return self._boxes
 
+    @property
+    def boxes_start_pos(self):
+        return self._boxes_start_pos
+
     def append(self, box):
         self._boxes.append(box)
 
