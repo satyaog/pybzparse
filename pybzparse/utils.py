@@ -392,3 +392,34 @@ def make_vide_trak(creation_time, modification_time, label,
     stsd.append(avc1)
 
     return trak
+
+
+def find_boxes(boxes, box_type):
+    for box in boxes:
+        if box.header.type == box_type:
+            yield box
+
+
+def find_traks(boxes, trak_name):
+    for box in boxes:
+        if box.header.type != b"trak":
+            continue
+        # TRAK.MDIA.HDLR
+        if box.boxes[-1].boxes[1].name == trak_name:
+            yield box
+
+
+def get_trak_sample(bstr, boxes, trak_name, index):
+    sample = None
+
+    for trak in find_traks(boxes, trak_name):
+        # TRAK.MDIA.MINF.STBL
+        stbl = trak.boxes[-1].boxes[-1].boxes[-1]
+
+        offset = next(find_boxes(stbl.boxes, b"stco")).entries[index].chunk_offset
+        size = next(find_boxes(stbl.boxes, b"stsz")).samples[index].entry_size
+        bstr.bytepos = offset
+        sample = bstr.read("bytes:{}".format(size))
+        break
+
+    return sample
