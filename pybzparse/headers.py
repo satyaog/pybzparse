@@ -92,6 +92,16 @@ class BoxHeader(AbstractBoxHeader, BoxHeaderFieldsList):
             self._drop_field(self._box_ext_size)
         self._refresh_cache(len(bytes(self)))
 
+    @property
+    def box_ext_size(self):
+        return self._box_size_cache
+
+    @box_ext_size.setter
+    def box_ext_size(self, value):
+        self._set_field(self._box_size, 1)
+        self._set_field(self._box_ext_size, value)
+        self._refresh_cache(len(bytes(self)))
+
     def parse(self, bstr):
         self._start_pos = bstr.bytepos
         self.parse_fields(bstr)

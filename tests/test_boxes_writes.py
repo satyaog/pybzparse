@@ -119,6 +119,21 @@ def test_box_header():
     assert bytes(box_header) == bs.bytes
 
 
+def test_box_header_force_box_extended_size():
+    bs = pack("uintbe:32, bytes:4, uintbe:64", 1, b"abcd", 32)
+
+    box_header = BoxHeader()
+    box_header.type = b"abcd"
+    box_header.box_ext_size = 32
+
+    assert box_header.type == b"abcd"
+    assert box_header.box_size == 32
+    assert box_header.box_ext_size == 32
+    assert box_header.header_size == 16
+    assert box_header.content_size == 16
+    assert bytes(box_header) == bs.bytes
+
+
 def test_box_header_extended_user_type():
     bs = pack("uintbe:32, bytes:4, uintbe:64, bytes:16", 1, b"uuid",
               MAX_UINT_32 + 1, b":benzina\x00\x00\x00\x00\x00\x00\x00\x00")
