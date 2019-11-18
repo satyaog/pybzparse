@@ -416,10 +416,13 @@ def get_trak_sample(bstr, boxes, trak_name, index):
         # TRAK.MDIA.MINF.STBL
         stbl = trak.boxes[-1].boxes[-1].boxes[-1]
 
-        offset = next(find_boxes(stbl.boxes, b"stco")).entries[index].chunk_offset
-        size = next(find_boxes(stbl.boxes, b"stsz")).samples[index].entry_size
-        bstr.bytepos = offset
-        sample = bstr.read("bytes:{}".format(size))
+        stco = next(find_boxes(stbl.boxes, b"stco"))
+        stsz = next(find_boxes(stbl.boxes, b"stsz"))
+        if index < len(stco.entries):
+            offset = stco.entries[index].chunk_offset
+            size = stsz.samples[index].entry_size
+            bstr.bytepos = offset
+            sample = bstr.read("bytes:{}".format(size))
         break
 
     return sample
