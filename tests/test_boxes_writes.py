@@ -1058,9 +1058,9 @@ def test_stsc_box():
 
 def test_stco_box():
     bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
-              "uintbe:32, uintbe:32",
-              20, b"stco", 0, b"\x00\x00\x00",
-              1, 1)
+              "uintbe:32, uintbe:32, uintbe:32, uintbe:32",
+              28, b"stco", 0, b"\x00\x00\x00",
+              3, 0, 1, 2)
 
     box_header = FullBoxHeader()
     stco = bx_def.STCO(box_header)
@@ -1070,20 +1070,67 @@ def test_stco_box():
     stco.header.flags = b"\x00\x00\x00"
 
     entry = stco.append_and_return()
+    entry.chunk_offset = 0
+    entry = stco.append_and_return()
     entry.chunk_offset = 1
+    entry = stco.append_and_return()
+    entry.chunk_offset = 2
 
     stco.refresh_box_size()
 
     box = stco
 
     assert box.header.type == b"stco"
-    assert box.header.box_size == 20
+    assert box.header.box_size == 28
     assert box.header.version == 0
     assert box.header.flags == b"\x00\x00\x00"
 
-    assert box.entry_count == 1
-    assert len(box.entries) == 1
-    assert box.entries[0].chunk_offset == 1
+    assert box.entry_count == 3
+    assert len(box.entries) == 3
+    assert box.entries[0].chunk_offset == 0
+    assert box.entries[1].chunk_offset == 1
+    assert box.entries[2].chunk_offset == 2
+
+    parsed_box = next(Parser.parse(bs))
+    parsed_box.load(bs)
+    assert bytes(parsed_box) == bs.bytes
+    assert bytes(box) == bs.bytes
+
+
+def test_co64_box():
+    bs = pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+              "uintbe:32, uintbe:64, uintbe:64, uintbe:64",
+              40, b"co64", 0, b"\x00\x00\x00",
+              3, 0, 1, 2)
+
+    box_header = FullBoxHeader()
+    stco = bx_def.CO64(box_header)
+
+    stco.header.type = b"co64"
+    stco.header.version = 0
+    stco.header.flags = b"\x00\x00\x00"
+
+    entry = stco.append_and_return()
+    entry.chunk_offset = 0
+    entry = stco.append_and_return()
+    entry.chunk_offset = 1
+    entry = stco.append_and_return()
+    entry.chunk_offset = 2
+
+    stco.refresh_box_size()
+
+    box = stco
+
+    assert box.header.type == b"co64"
+    assert box.header.box_size == 40
+    assert box.header.version == 0
+    assert box.header.flags == b"\x00\x00\x00"
+
+    assert box.entry_count == 3
+    assert len(box.entries) == 3
+    assert box.entries[0].chunk_offset == 0
+    assert box.entries[1].chunk_offset == 1
+    assert box.entries[2].chunk_offset == 2
 
     parsed_box = next(Parser.parse(bs))
     parsed_box.load(bs)

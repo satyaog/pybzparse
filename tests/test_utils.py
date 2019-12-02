@@ -293,6 +293,92 @@ def test_make_trak():
                                samples_offset + sum(samples_sizes[0:2]))
 
 
+def test_make_trak_co64():
+    creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
+    modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
+
+    samples_sizes = [198297, 127477, 192476]
+    samples_offset = utils.MAX_UINT_32
+    trak = utils.make_trak(creation_time, modification_time,
+                           samples_sizes, samples_offset)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[1]
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL
+    stbl = minf.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.CO64
+    stco = stbl.boxes[4]
+    stco.refresh_box_size()
+
+    assert stco.header.type == b"co64"
+    assert stco.header.box_size == 40
+    assert stco.header.version == 0
+    assert stco.header.flags == b"\x00\x00\x00"
+    assert stco.entry_count == 3
+    assert len(stco.entries) == 3
+    assert stco.entries[0].chunk_offset == samples_offset
+    assert stco.entries[1].chunk_offset == samples_offset + sum(samples_sizes[0:1])
+    assert stco.entries[2].chunk_offset == samples_offset + sum(samples_sizes[0:2])
+
+    assert bytes(stco) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                               "uintbe:32, "
+                               "uintbe:64, uintbe:64, uintbe:64",
+                               40, b"co64", 0, b"\x00\x00\x00",
+                               3,
+                               samples_offset,
+                               samples_offset + sum(samples_sizes[0:1]),
+                               samples_offset + sum(samples_sizes[0:2]))
+
+
+def test_make_trak_co64_explicit_offset():
+    creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
+    modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
+
+    samples_sizes = [198297, 127477, 192476]
+    samples_offsets = [utils.MAX_UINT_32,
+                       utils.MAX_UINT_32 + 300000,
+                       utils.MAX_UINT_32 + 2 * 300000]
+    trak = utils.make_trak(creation_time, modification_time,
+                           samples_sizes, samples_offsets)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[1]
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL
+    stbl = minf.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.CO64
+    stco = stbl.boxes[4]
+    stco.refresh_box_size()
+
+    assert stco.header.type == b"co64"
+    assert stco.header.box_size == 40
+    assert stco.header.version == 0
+    assert stco.header.flags == b"\x00\x00\x00"
+    assert stco.entry_count == 3
+    assert len(stco.entries) == 3
+    assert stco.entries[0].chunk_offset == utils.MAX_UINT_32
+    assert stco.entries[1].chunk_offset == utils.MAX_UINT_32 + 300000
+    assert stco.entries[2].chunk_offset == utils.MAX_UINT_32 + 2 * 300000
+
+    assert bytes(stco) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                               "uintbe:32, "
+                               "uintbe:64, uintbe:64, uintbe:64",
+                               40, b"co64", 0, b"\x00\x00\x00",
+                               3,
+                               utils.MAX_UINT_32,
+                               utils.MAX_UINT_32 + 300000,
+                               utils.MAX_UINT_32 + 2 * 300000)
+
+
 def test_make_meta_trak():
     creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
     modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
