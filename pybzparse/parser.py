@@ -73,14 +73,14 @@ class Parser(object):
                       bstr.bytepos, offset_bytes)
 
             if headers_only:
-                yield header
-
                 # move pointer to next header if possible
                 try:
                     bstr.bytepos = header.start_pos + header.box_size
                 except ValueError:
                     log.warning("Premature end of data")
                     raise
+
+                yield header
             else:
                 yield cls.parse_box(bstr, header, recursive=recursive)
 
@@ -104,6 +104,7 @@ class Parser(object):
 
         try:
             box = parse_function(bstr, header)
+
             if recursive and isinstance(box, cls._container_box):
                 box.parse_boxes(bstr, recursive)
             else:
