@@ -2,6 +2,7 @@ from datetime import datetime
 
 from bitstring import pack
 
+from pybzparse import boxes as bx_def, headers as hd_def
 import pybzparse.utils as utils
 
 
@@ -575,3 +576,22 @@ def test_make_vide_trak():
     assert pasp.header.box_size == 16
     assert pasp.h_spacing == 1
     assert pasp.v_spacing == 1
+
+
+def test_find_boxes():
+    boxes = [bx_def.UnknownBox(hd_def.BoxHeader()),
+             bx_def.UnknownBox(hd_def.BoxHeader()),
+             bx_def.UnknownBox(hd_def.BoxHeader())]
+
+    boxes[0].header.type = b"0001"
+    boxes[1].header.type = b"0002"
+    boxes[2].header.type = b"0003"
+
+    assert next(utils.find_boxes(boxes, b"0001")).header.type == b"0001"
+    assert next(utils.find_boxes(boxes, b"0002")).header.type == b"0002"
+    assert next(utils.find_boxes(boxes, b"0003")).header.type == b"0003"
+
+    assert [box.header.type
+            for box in utils.find_boxes(boxes, [b"0001", b"0003"])] == [b"0001", b"0003"]
+
+    assert next(utils.find_boxes(boxes, b"0004"), None) is None

@@ -419,16 +419,14 @@ def make_vide_trak(creation_time, modification_time, label,
     return trak
 
 
-def find_boxes(boxes, box_type):
+def find_boxes(boxes, box_types):
     for box in boxes:
-        if box.header.type == box_type:
+        if box.header.type in box_types:
             yield box
 
 
 def find_traks(boxes, trak_name):
-    for box in boxes:
-        if box.header.type != b"trak":
-            continue
+    for box in find_boxes(boxes, b"trak"):
         # TRAK.MDIA.HDLR
         if box.boxes[-1].boxes[1].name == trak_name:
             yield box
@@ -441,7 +439,7 @@ def get_trak_sample(bstr, boxes, trak_name, index):
         # TRAK.MDIA.MINF.STBL
         stbl = trak.boxes[-1].boxes[-1].boxes[-1]
 
-        stco = next(find_boxes(stbl.boxes, b"stco"))
+        stco = next(find_boxes(stbl.boxes, [b"stco", b"co64"]))
         stsz = next(find_boxes(stbl.boxes, b"stsz"))
         if index < len(stco.entries):
             offset = stco.entries[index].chunk_offset
