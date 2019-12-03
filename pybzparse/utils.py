@@ -443,7 +443,10 @@ def get_trak_sample(bstr, boxes, trak_name, index):
         stsz = next(find_boxes(stbl.boxes, b"stsz"))
         if index < len(stco.entries):
             offset = stco.entries[index].chunk_offset
-            size = stsz.samples[index].entry_size
+            if stsz.samples:
+                size = stsz.samples[index].entry_size
+            else:
+                size = stsz.sample_size
             bstr.bytepos = offset
             sample = bstr.read("bytes:{}".format(size))
         break
