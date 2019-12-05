@@ -268,7 +268,7 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offsets):
     return trak
 
 
-def make_meta_trak(creation_time, modification_time, label,
+def make_meta_trak(creation_time, modification_time, name,
                    samples_sizes, samples_offsets):
     trak = make_trak(creation_time, modification_time, samples_sizes, samples_offsets)
 
@@ -278,7 +278,7 @@ def make_meta_trak(creation_time, modification_time, label,
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
     hdlr.handler_type = (b"meta",)
-    hdlr.name = (label,)
+    hdlr.name = (name,)
 
     # MOOV.TRAK.MDIA.MINF
     minf = mdia.boxes[-1]
@@ -310,7 +310,7 @@ def make_meta_trak(creation_time, modification_time, label,
     return trak
 
 
-def make_text_trak(creation_time, modification_time, label,
+def make_text_trak(creation_time, modification_time, name,
                    samples_sizes, samples_offsets):
     trak = make_trak(creation_time, modification_time, samples_sizes, samples_offsets)
 
@@ -320,7 +320,7 @@ def make_text_trak(creation_time, modification_time, label,
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
     hdlr.handler_type = (b"text",)
-    hdlr.name = (label,)
+    hdlr.name = (name,)
 
     # MOOV.TRAK.MDIA.MINF
     minf = mdia.boxes[-1]
@@ -352,7 +352,7 @@ def make_text_trak(creation_time, modification_time, label,
     return trak
 
 
-def make_vide_trak(creation_time, modification_time, label,
+def make_vide_trak(creation_time, modification_time, name,
                    samples_sizes, samples_offsets):
     trak = make_trak(creation_time, modification_time, samples_sizes, samples_offsets)
 
@@ -362,7 +362,7 @@ def make_vide_trak(creation_time, modification_time, label,
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
     hdlr.handler_type = (b"vide",)
-    hdlr.name = (label,)
+    hdlr.name = (name,)
 
     # MOOV.TRAK.MDIA.MINF
     minf = mdia.boxes[-1]
@@ -425,30 +425,72 @@ def find_boxes(boxes, box_types):
             yield box
 
 
-def find_traks(boxes, trak_name):
+def find_traks(boxes, trak_names):
     for box in find_boxes(boxes, b"trak"):
-        # TRAK.MDIA.HDLR
-        if box.boxes[-1].boxes[1].name == trak_name:
+        if get_name(box) in trak_names:
             yield box
 
 
-def get_trak_sample(bstr, boxes, trak_name, index):
-    sample = None
+def get_trak_sample_location(boxes, trak_name, index):
+    sample_location = None
 
     for trak in find_traks(boxes, trak_name):
-        # TRAK.MDIA.MINF.STBL
-        stbl = trak.boxes[-1].boxes[-1].boxes[-1]
-
-        stco = next(find_boxes(stbl.boxes, [b"stco", b"co64"]))
-        stsz = next(find_boxes(stbl.boxes, b"stsz"))
-        if index < len(stco.entries):
-            offset = stco.entries[index].chunk_offset
-            if stsz.samples:
-                size = stsz.samples[index].entry_size
-            else:
-                size = stsz.sample_size
-            bstr.bytepos = offset
-            sample = bstr.read("bytes:{}".format(size))
+        sample_location = get_sample_location(trak, index)
         break
 
-    return sample
+    return sample_location
+
+
+def get_trak_sample_bytes(bstr, boxes, trak_name, index):
+    sample_bytes = None
+
+    for trak in find_traks(boxes, trak_name):
+        sample_bytes = get_sample_bytes(bstr, trak, index)
+        break
+
+    return sample_bytes
+
+
+def get_name(trak):
+    # TRAK.MDIA.HDLR
+    return trak.boxes[-1].boxes[1].name
+
+
+def get_shape(trak):
+    # TRAK.TKHD
+    tkhd = trak.boxes[0]
+    return tkhd.width, tkhd.height
+
+
+def get_sample_table(trak):
+    # TRAK.MDIA.MINF.STBL
+    return trak.boxes[-1].boxes[-1].boxes[-1]
+
+
+def get_sample_location(trak, index):
+    sample_location = None
+
+    stbl = get_sample_table(trak)
+
+    stco = next(find_boxes(stbl.boxes, [b"stco", b"co64"]))
+    stsz = next(find_boxes(stbl.boxes, b"stsz"))
+    if index < len(stco.entries):
+        offset = stco.entries[index].chunk_offset
+        if stsz.samples:
+            size = stsz.samples[index].entry_size
+        else:
+            size = stsz.sample_size
+        sample_location = (offset, size)
+
+    return sample_location
+
+
+def get_sample_bytes(bstr, trak, index):
+    location = get_sample_location(trak, index)
+
+    if not location:
+        return None
+
+    offset, size = location
+    bstr.bytepos = offset
+    return bstr.read("bytes:{}".format(size))

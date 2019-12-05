@@ -581,17 +581,82 @@ def test_make_vide_trak():
 def test_find_boxes():
     boxes = [bx_def.UnknownBox(hd_def.BoxHeader()),
              bx_def.UnknownBox(hd_def.BoxHeader()),
+             bx_def.UnknownBox(hd_def.BoxHeader()),
              bx_def.UnknownBox(hd_def.BoxHeader())]
 
     boxes[0].header.type = b"0001"
     boxes[1].header.type = b"0002"
     boxes[2].header.type = b"0003"
+    boxes[3].header.type = b"0002"
 
     assert next(utils.find_boxes(boxes, b"0001")).header.type == b"0001"
     assert next(utils.find_boxes(boxes, b"0002")).header.type == b"0002"
     assert next(utils.find_boxes(boxes, b"0003")).header.type == b"0003"
 
     assert [box.header.type
+            for box in utils.find_boxes(boxes, b"0002")] == [b"0002", b"0002"]
+    assert [box.header.type
             for box in utils.find_boxes(boxes, [b"0001", b"0003"])] == [b"0001", b"0003"]
 
     assert next(utils.find_boxes(boxes, b"0004"), None) is None
+
+
+def test_find_traks():
+    boxes = [utils.make_meta_trak(0, 0, b"trak1\0", [], 0),
+             utils.make_meta_trak(0, 0, b"trak2\0", [], 0),
+             utils.make_meta_trak(0, 0, b"trak3\0", [], 0),
+             bx_def.UnknownBox(hd_def.BoxHeader()),
+             utils.make_meta_trak(0, 0, b"trak2\0", [], 0)]
+
+    boxes[3].header.type = b"0001"
+
+    assert utils.get_name(next(utils.find_traks(boxes, b"trak1\0"))) == b"trak1\0"
+    assert utils.get_name(next(utils.find_traks(boxes, b"trak2\0"))) == b"trak2\0"
+    assert utils.get_name(next(utils.find_traks(boxes, b"trak3\0"))) == b"trak3\0"
+
+    assert [utils.get_name(trak)
+            for trak in utils.find_traks(boxes, b"trak2\0")] == [b"trak2\0", b"trak2\0"]
+    assert [utils.get_name(trak)
+            for trak in utils.find_traks(boxes, [b"trak1\0", b"trak3\0"])] == [b"trak1\0", b"trak3\0"]
+
+    assert next(utils.find_boxes(boxes, b"0004"), None) is None
+
+
+def test_get_trak_sample_location():
+    boxes = [bx_def.UnknownBox(hd_def.BoxHeader()),
+             utils.make_meta_trak(0, 0, b"trak1\0", [12345, 67890], 23456)]
+
+    boxes[0].header.type = b"0001"
+
+    assert utils.get_trak_sample_location(boxes, b"trak1\0", 0) == (23456, 12345)
+    assert utils.get_trak_sample_location(boxes, b"trak1\0", 1) == (35801, 67890)
+
+
+def test_get_name():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [], 0)
+
+    assert utils.get_name(trak) == b"trak1\0"
+
+
+def test_get_shape():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [], 0)
+
+    assert utils.get_shape(trak) == (-1, -1)
+
+
+def test_get_sample_table():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [], 0)
+
+    assert utils.get_sample_table(trak).header.type == b"stbl"
+
+
+def test_get_sample_location():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [12345, 67890], 23456)
+
+    assert utils.get_sample_location(trak, 0) == (23456, 12345)
+    assert utils.get_sample_location(trak, 1) == (35801, 67890)
+
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [12345, 67890], [23456, 78901])
+
+    assert utils.get_sample_location(trak, 0) == (23456, 12345)
+    assert utils.get_sample_location(trak, 1) == (78901, 67890)
