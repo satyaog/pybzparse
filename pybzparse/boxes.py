@@ -10,6 +10,7 @@ from pybzparse.sub_fields_lists import EditListSubFieldsList, \
                                        SampleSizeSubFieldsList, \
                                        SampleToChunkSubFieldsList, \
                                        ChunkOffsetSubFieldsList, \
+                                       ChunkOffset64SubFieldsList, \
                                        ItemLocationSubFieldsList, \
                                        ItemPropertyAssociationSubFieldsList
 
@@ -735,6 +736,29 @@ class ChunkOffsetBox(AbstractFullBox, ChunkOffsetSubFieldsList, MixinDictRepr):
         return ChunkOffsetSubFieldsList.__bytes__(self)
 
 
+class ChunkOffset64Box(AbstractFullBox, ChunkOffset64SubFieldsList, MixinDictRepr):
+    type = b"co64"
+
+    def __init__(self, header):
+        super().__init__(header)
+        ChunkOffset64SubFieldsList.__init__(self)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return ChunkOffset64SubFieldsList.__bytes__(self)
+
+
 # dinf boxes
 class DataReferenceBox(ContainerBox, DataReferenceBoxFieldsList, MixinDictRepr):
     type = b"dref"
@@ -1133,6 +1157,7 @@ CTTS = CompositionOffsetBox
 STSZ = SampleSizeBox
 STSC = SampleToChunkBox
 STCO = ChunkOffsetBox
+CO64 = ChunkOffset64Box
 
 # dinf boxes
 DREF = DataReferenceBox
@@ -1210,6 +1235,7 @@ Parser.register_box(CTTS)
 Parser.register_box(STSZ)
 Parser.register_box(STSC)
 Parser.register_box(STCO)
+Parser.register_box(CO64)
 
 # dinf boxes
 Parser.register_box(DREF)

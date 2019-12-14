@@ -467,3 +467,18 @@ class ChunkOffsetSubFieldsList(AbstractSubFieldsList, ChunkOffsetBoxFieldsList):
     def parse_fields(self, bstr, header):
         super().parse_fields(bstr, header)
         self._entries_start_pos = bstr.bytepos
+
+
+class ChunkOffset64SubFieldsList(ChunkOffsetSubFieldsList):
+    def append_and_return(self):
+        entry = ChunkOffset64BoxEntryFieldsList()
+        self._entries.append(entry)
+        self._entry_count.value += 1
+        return entry
+
+    def load_sub_fields(self, bstr, header):
+        bstr.bytepos = self._entries_start_pos
+        for i in range(self._entry_count.value):
+            entry = ChunkOffset64BoxEntryFieldsList()
+            entry.parse_fields(bstr, header)
+            self._entries.append(entry)

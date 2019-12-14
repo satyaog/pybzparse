@@ -1501,6 +1501,12 @@ class ChunkOffsetBoxEntryFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._chunk_offset)
 
 
+class ChunkOffset64BoxEntryFieldsList(ChunkOffsetBoxEntryFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length)
+        self._chunk_offset.type = "uintbe:64"
+
+
 # dinf boxes
 class DataReferenceBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):

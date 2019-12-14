@@ -2,6 +2,7 @@ from datetime import datetime
 
 from bitstring import pack
 
+from pybzparse import boxes as bx_def, headers as hd_def
 import pybzparse.utils as utils
 
 
@@ -293,6 +294,92 @@ def test_make_trak():
                                samples_offset + sum(samples_sizes[0:2]))
 
 
+def test_make_trak_co64():
+    creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
+    modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
+
+    samples_sizes = [198297, 127477, 192476]
+    samples_offset = utils.MAX_UINT_32
+    trak = utils.make_trak(creation_time, modification_time,
+                           samples_sizes, samples_offset)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[1]
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL
+    stbl = minf.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.CO64
+    stco = stbl.boxes[4]
+    stco.refresh_box_size()
+
+    assert stco.header.type == b"co64"
+    assert stco.header.box_size == 40
+    assert stco.header.version == 0
+    assert stco.header.flags == b"\x00\x00\x00"
+    assert stco.entry_count == 3
+    assert len(stco.entries) == 3
+    assert stco.entries[0].chunk_offset == samples_offset
+    assert stco.entries[1].chunk_offset == samples_offset + sum(samples_sizes[0:1])
+    assert stco.entries[2].chunk_offset == samples_offset + sum(samples_sizes[0:2])
+
+    assert bytes(stco) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                               "uintbe:32, "
+                               "uintbe:64, uintbe:64, uintbe:64",
+                               40, b"co64", 0, b"\x00\x00\x00",
+                               3,
+                               samples_offset,
+                               samples_offset + sum(samples_sizes[0:1]),
+                               samples_offset + sum(samples_sizes[0:2]))
+
+
+def test_make_trak_co64_explicit_offset():
+    creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
+    modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
+
+    samples_sizes = [198297, 127477, 192476]
+    samples_offsets = [utils.MAX_UINT_32,
+                       utils.MAX_UINT_32 + 300000,
+                       utils.MAX_UINT_32 + 2 * 300000]
+    trak = utils.make_trak(creation_time, modification_time,
+                           samples_sizes, samples_offsets)
+
+    # MOOV.TRAK.MDIA
+    mdia = trak.boxes[1]
+
+    # MOOV.TRAK.MDIA.MINF
+    minf = mdia.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL
+    stbl = minf.boxes[2]
+
+    # MOOV.TRAK.MDIA.MINF.STBL.CO64
+    stco = stbl.boxes[4]
+    stco.refresh_box_size()
+
+    assert stco.header.type == b"co64"
+    assert stco.header.box_size == 40
+    assert stco.header.version == 0
+    assert stco.header.flags == b"\x00\x00\x00"
+    assert stco.entry_count == 3
+    assert len(stco.entries) == 3
+    assert stco.entries[0].chunk_offset == utils.MAX_UINT_32
+    assert stco.entries[1].chunk_offset == utils.MAX_UINT_32 + 300000
+    assert stco.entries[2].chunk_offset == utils.MAX_UINT_32 + 2 * 300000
+
+    assert bytes(stco) == pack("uintbe:32, bytes:4, uintbe:8, bits:24, "
+                               "uintbe:32, "
+                               "uintbe:64, uintbe:64, uintbe:64",
+                               40, b"co64", 0, b"\x00\x00\x00",
+                               3,
+                               utils.MAX_UINT_32,
+                               utils.MAX_UINT_32 + 300000,
+                               utils.MAX_UINT_32 + 2 * 300000)
+
+
 def test_make_meta_trak():
     creation_time = utils.to_mp4_time(datetime(2019, 9, 15, 0, 0, 0))
     modification_time = utils.to_mp4_time(datetime(2019, 9, 16, 0, 0, 0))
@@ -489,3 +576,87 @@ def test_make_vide_trak():
     assert pasp.header.box_size == 16
     assert pasp.h_spacing == 1
     assert pasp.v_spacing == 1
+
+
+def test_find_boxes():
+    boxes = [bx_def.UnknownBox(hd_def.BoxHeader()),
+             bx_def.UnknownBox(hd_def.BoxHeader()),
+             bx_def.UnknownBox(hd_def.BoxHeader()),
+             bx_def.UnknownBox(hd_def.BoxHeader())]
+
+    boxes[0].header.type = b"0001"
+    boxes[1].header.type = b"0002"
+    boxes[2].header.type = b"0003"
+    boxes[3].header.type = b"0002"
+
+    assert next(utils.find_boxes(boxes, b"0001")).header.type == b"0001"
+    assert next(utils.find_boxes(boxes, b"0002")).header.type == b"0002"
+    assert next(utils.find_boxes(boxes, b"0003")).header.type == b"0003"
+
+    assert [box.header.type
+            for box in utils.find_boxes(boxes, b"0002")] == [b"0002", b"0002"]
+    assert [box.header.type
+            for box in utils.find_boxes(boxes, [b"0001", b"0003"])] == [b"0001", b"0003"]
+
+    assert next(utils.find_boxes(boxes, b"0004"), None) is None
+
+
+def test_find_traks():
+    boxes = [utils.make_meta_trak(0, 0, b"trak1\0", [], 0),
+             utils.make_meta_trak(0, 0, b"trak2\0", [], 0),
+             utils.make_meta_trak(0, 0, b"trak3\0", [], 0),
+             bx_def.UnknownBox(hd_def.BoxHeader()),
+             utils.make_meta_trak(0, 0, b"trak2\0", [], 0)]
+
+    boxes[3].header.type = b"0001"
+
+    assert utils.get_name(next(utils.find_traks(boxes, b"trak1\0"))) == b"trak1\0"
+    assert utils.get_name(next(utils.find_traks(boxes, b"trak2\0"))) == b"trak2\0"
+    assert utils.get_name(next(utils.find_traks(boxes, b"trak3\0"))) == b"trak3\0"
+
+    assert [utils.get_name(trak)
+            for trak in utils.find_traks(boxes, b"trak2\0")] == [b"trak2\0", b"trak2\0"]
+    assert [utils.get_name(trak)
+            for trak in utils.find_traks(boxes, [b"trak1\0", b"trak3\0"])] == [b"trak1\0", b"trak3\0"]
+
+    assert next(utils.find_boxes(boxes, b"0004"), None) is None
+
+
+def test_get_trak_sample_location():
+    boxes = [bx_def.UnknownBox(hd_def.BoxHeader()),
+             utils.make_meta_trak(0, 0, b"trak1\0", [12345, 67890], 23456)]
+
+    boxes[0].header.type = b"0001"
+
+    assert utils.get_trak_sample_location(boxes, b"trak1\0", 0) == (23456, 12345)
+    assert utils.get_trak_sample_location(boxes, b"trak1\0", 1) == (35801, 67890)
+
+
+def test_get_name():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [], 0)
+
+    assert utils.get_name(trak) == b"trak1\0"
+
+
+def test_get_shape():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [], 0)
+
+    assert utils.get_shape(trak) == (-1, -1)
+
+
+def test_get_sample_table():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [], 0)
+
+    assert utils.get_sample_table(trak).header.type == b"stbl"
+
+
+def test_get_sample_location():
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [12345, 67890], 23456)
+
+    assert utils.get_sample_location(trak, 0) == (23456, 12345)
+    assert utils.get_sample_location(trak, 1) == (35801, 67890)
+
+    trak = utils.make_meta_trak(0, 0, b"trak1\0", [12345, 67890], [23456, 78901])
+
+    assert utils.get_sample_location(trak, 0) == (23456, 12345)
+    assert utils.get_sample_location(trak, 1) == (78901, 67890)

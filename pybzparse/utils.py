@@ -1,9 +1,11 @@
+from ctypes import c_uint32
 from datetime import datetime, timedelta
 
 from pybzparse import boxes as bx_def
 from pybzparse.headers import BoxHeader, FullBoxHeader
 
 BEGIN = datetime(1904, 1, 1, 0, 0)
+MAX_UINT_32 = c_uint32(-1).value
 
 
 def to_mp4_time(date_time):
@@ -12,6 +14,16 @@ def to_mp4_time(date_time):
 
 def from_mp4_time(seconds):
     return BEGIN + timedelta(0, seconds)
+
+
+def gen_sample_offsets(samples_sizes, samples_offsets):
+    if isinstance(samples_offsets, int):
+        for size in samples_sizes:
+            yield samples_offsets
+            samples_offsets += size
+    else:
+        for offset in samples_offsets:
+            yield offset
 
 
 def make_mvhd(creation_time, modification_time, samples_count):
@@ -45,7 +57,7 @@ def make_mvhd(creation_time, modification_time, samples_count):
     return mvhd
 
 
-def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
+def make_trak(creation_time, modification_time, samples_sizes, samples_offsets):
     # MOOV.TRAK
     trak = bx_def.TRAK(BoxHeader())
     trak.header.type = b"trak"
@@ -222,17 +234,30 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     stbl.append(stsc)
 
     # MOOV.TRAK.MDIA.MINF.STBL.STCO
-    stco = bx_def.STCO(FullBoxHeader())
+    co = bx_def.STCO(FullBoxHeader())
+    co.header.type = b"stco"
+    co.header.version = (0,)
+    co.header.flags = (b"\x00\x00\x00",)
 
-    stco.header.type = b"stco"
-    stco.header.version = (0,)
-    stco.header.flags = (b"\x00\x00\x00",)
+    for offset in gen_sample_offsets(samples_sizes, samples_offsets):
+        # If the offset gets bigger than 2^32-1, use the 64 bits implementation
+        if offset > MAX_UINT_32:
+            # MOOV.TRAK.MDIA.MINF.STBL.CO64
+            co = bx_def.CO64(FullBoxHeader())
+            co.header.type = b"co64"
+            co.header.version = (0,)
+            co.header.flags = (b"\x00\x00\x00",)
+            break
+        entry = co.append_and_return()
+        entry.chunk_offset = (offset,)
 
-    for i in range(len(samples_sizes)):
-        entry = stco.append_and_return()
-        entry.chunk_offset = (samples_offset + sum(samples_sizes[0:i]),)
+    # If the offset gets bigger than 2^32-1, add again using co64
+    if isinstance(co, bx_def.CO64):
+        for offset in gen_sample_offsets(samples_sizes, samples_offsets):
+            entry = co.append_and_return()
+            entry.chunk_offset = (offset,)
 
-    stbl.append(stco)
+    stbl.append(co)
 
     minf.append(stbl)
 
@@ -243,9 +268,9 @@ def make_trak(creation_time, modification_time, samples_sizes, samples_offset):
     return trak
 
 
-def make_meta_trak(creation_time, modification_time, label,
-                   samples_sizes, samples_offset):
-    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offset)
+def make_meta_trak(creation_time, modification_time, name,
+                   samples_sizes, samples_offsets):
+    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offsets)
 
     # MOOV.TRAK.MDIA
     mdia = trak.boxes[-1]
@@ -253,7 +278,7 @@ def make_meta_trak(creation_time, modification_time, label,
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
     hdlr.handler_type = (b"meta",)
-    hdlr.name = (label,)
+    hdlr.name = (name,)
 
     # MOOV.TRAK.MDIA.MINF
     minf = mdia.boxes[-1]
@@ -285,9 +310,9 @@ def make_meta_trak(creation_time, modification_time, label,
     return trak
 
 
-def make_text_trak(creation_time, modification_time, label,
-                   samples_sizes, samples_offset):
-    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offset)
+def make_text_trak(creation_time, modification_time, name,
+                   samples_sizes, samples_offsets):
+    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offsets)
 
     # MOOV.TRAK.MDIA
     mdia = trak.boxes[-1]
@@ -295,7 +320,7 @@ def make_text_trak(creation_time, modification_time, label,
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
     hdlr.handler_type = (b"text",)
-    hdlr.name = (label,)
+    hdlr.name = (name,)
 
     # MOOV.TRAK.MDIA.MINF
     minf = mdia.boxes[-1]
@@ -327,9 +352,9 @@ def make_text_trak(creation_time, modification_time, label,
     return trak
 
 
-def make_vide_trak(creation_time, modification_time, label,
-                   samples_sizes, samples_offset):
-    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offset)
+def make_vide_trak(creation_time, modification_time, name,
+                   samples_sizes, samples_offsets):
+    trak = make_trak(creation_time, modification_time, samples_sizes, samples_offsets)
 
     # MOOV.TRAK.MDIA
     mdia = trak.boxes[-1]
@@ -337,7 +362,7 @@ def make_vide_trak(creation_time, modification_time, label,
     # MOOV.TRAK.MDIA.HDLR
     hdlr = mdia.boxes[1]
     hdlr.handler_type = (b"vide",)
-    hdlr.name = (label,)
+    hdlr.name = (name,)
 
     # MOOV.TRAK.MDIA.MINF
     minf = mdia.boxes[-1]
@@ -394,35 +419,78 @@ def make_vide_trak(creation_time, modification_time, label,
     return trak
 
 
-def find_boxes(boxes, box_type):
+def find_boxes(boxes, box_types):
     for box in boxes:
-        if box.header.type == box_type:
+        if box.header.type in box_types:
             yield box
 
 
-def find_traks(boxes, trak_name):
-    for box in boxes:
-        if box.header.type != b"trak":
-            continue
-        # TRAK.MDIA.HDLR
-        if box.boxes[-1].boxes[1].name == trak_name:
+def find_traks(boxes, trak_names):
+    for box in find_boxes(boxes, b"trak"):
+        if get_name(box) in trak_names:
             yield box
 
 
-def get_trak_sample(bstr, boxes, trak_name, index):
-    sample = None
+def get_trak_sample_location(boxes, trak_name, index):
+    sample_location = None
 
     for trak in find_traks(boxes, trak_name):
-        # TRAK.MDIA.MINF.STBL
-        stbl = trak.boxes[-1].boxes[-1].boxes[-1]
-
-        stco = next(find_boxes(stbl.boxes, b"stco"))
-        stsz = next(find_boxes(stbl.boxes, b"stsz"))
-        if index < len(stco.entries):
-            offset = stco.entries[index].chunk_offset
-            size = stsz.samples[index].entry_size
-            bstr.bytepos = offset
-            sample = bstr.read("bytes:{}".format(size))
+        sample_location = get_sample_location(trak, index)
         break
 
-    return sample
+    return sample_location
+
+
+def get_trak_sample_bytes(bstr, boxes, trak_name, index):
+    sample_bytes = None
+
+    for trak in find_traks(boxes, trak_name):
+        sample_bytes = get_sample_bytes(bstr, trak, index)
+        break
+
+    return sample_bytes
+
+
+def get_name(trak):
+    # TRAK.MDIA.HDLR
+    return trak.boxes[-1].boxes[1].name
+
+
+def get_shape(trak):
+    # TRAK.TKHD
+    tkhd = trak.boxes[0]
+    return tkhd.width, tkhd.height
+
+
+def get_sample_table(trak):
+    # TRAK.MDIA.MINF.STBL
+    return trak.boxes[-1].boxes[-1].boxes[-1]
+
+
+def get_sample_location(trak, index):
+    sample_location = None
+
+    stbl = get_sample_table(trak)
+
+    stco = next(find_boxes(stbl.boxes, [b"stco", b"co64"]))
+    stsz = next(find_boxes(stbl.boxes, b"stsz"))
+    if index < len(stco.entries):
+        offset = stco.entries[index].chunk_offset
+        if stsz.samples:
+            size = stsz.samples[index].entry_size
+        else:
+            size = stsz.sample_size
+        sample_location = (offset, size)
+
+    return sample_location
+
+
+def get_sample_bytes(bstr, trak, index):
+    location = get_sample_location(trak, index)
+
+    if not location:
+        return None
+
+    offset, size = location
+    bstr.bytepos = offset
+    return bstr.read("bytes:{}".format(size))
