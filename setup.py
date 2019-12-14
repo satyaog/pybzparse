@@ -22,5 +22,5 @@ setup(
     tests_require=["pytest"],
     long_description=long_description,
     data_files=[("", ["README.md", ]),
-               ("tests", glob.glob("tests/data/*"))]
+               ("tests", glob.glob("data/*"))]
 )
