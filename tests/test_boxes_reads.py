@@ -837,3 +837,70 @@ def test_clap_box():
     assert box.vert_off_n == -179
     assert box.vert_off_d == 2
     assert bytes(box) == bs.bytes
+
+
+def test_hvcc_box():
+    bs = pack("uintbe:32, bytes:4, "
+              "uintbe:8, "
+              "int:2, int:1, int:5, uintbe:32, uintbe:48, uintbe:8, "
+              "bits:4, int:12, bits:6, int:2, bits:6, int:2, bits:5, int:3, bits:5, int:3, "
+              "uintbe:16, uint:2, uint:3, uint:1, uint:2, uint:8, "
+
+              "uint:1, bits:1, uint:6, uintbe:16, "
+              
+              "uint:16, bytes:3",
+              39, b"hvcc",
+              1,
+              0, 0, 3, 1879048192, 193514046488576, 90,
+              '0b1111', 0, '0b111111', 0, '0b111111', 1, '0b11111', 0, '0b11111', 0,
+              0, 0, 1, 0, 3, 1,
+
+              1, '0b0', 32, 1,
+
+              3, b"321")
+
+    box_header = Parser.parse_header(bs)
+    hvcc = bx_def.HVCC.parse_box(bs, box_header)
+    box = hvcc
+
+    assert box.header.start_pos == 0
+    assert box.header.type == b"hvcc"
+    assert box.header.box_size == 39
+
+    assert box.configuration_version == 1
+
+    assert box.general_profile_space == 0
+    assert box.general_tier_flag == 0
+    assert box.general_profile_idc == 3
+    assert box.general_profile_compatibility_flags == 1879048192
+    assert box.general_constraint_indicator_flags == 193514046488576
+    assert box.general_level_idc == 90
+
+    assert box.min_spatial_segmentation_idc == 0
+    assert box.parallelism_type == 0
+    assert box.chroma_format == 1
+    assert box.bit_depth_luma_minus_8 == 0
+    assert box.bit_depth_chroma_minus_8 == 0
+
+    assert box.avg_frame_rate == 0
+    assert box.constant_frame_rate == 0
+    assert box.num_temporal_layers == 1
+    assert box.temporal_id_nested == 0
+    assert box.length_size_minus_one == 3
+    assert box.num_of_arrays == 1
+
+    assert len(box.arrays) == 0
+    box.load(bs)
+    assert len(box.arrays) == 1
+
+    array = box.arrays[0]
+    assert array.array_completeness == 1
+    assert array.nal_unit_type == 32
+    assert array.num_nalus == 1
+    assert len(array.nalus) == 1
+
+    nalu = array.nalus[0]
+    assert nalu.nal_unit_length == 3
+    assert nalu.nal_unit == b"321"
+
+    assert bytes(box) == bs.bytes
