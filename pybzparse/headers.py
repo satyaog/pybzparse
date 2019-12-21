@@ -20,6 +20,10 @@ class AbstractBoxHeader(metaclass=ABCMeta):
     def start_pos(self):
         return self._start_pos
 
+    @start_pos.setter
+    def start_pos(self, value):
+        self._start_pos = value
+
     @property
     def type(self):
         return self._type_cache
