@@ -230,7 +230,7 @@ def test_photo_heic_guided_parsing():
 
     # meta/iprp/ipco/hvcC
     box_header = Parser.parse_header(bstr)
-    hvcC = UnknownBox.parse_box(bstr, box_header)
+    hvcC = bx_def.HVCC.parse_box(bstr, box_header)
     assert hvcC.header.start_pos == 1929
     assert hvcC.header.type == b"hvcC"
     assert hvcC.header.box_size == 112
@@ -278,7 +278,7 @@ def test_photo_heic_guided_parsing():
 
     # meta/iprp/ipco/hvcC
     box_header = Parser.parse_header(bstr)
-    hvcC = UnknownBox.parse_box(bstr, box_header)
+    hvcC = bx_def.HVCC.parse_box(bstr, box_header)
     assert hvcC.header.start_pos == 2666
     assert hvcC.header.type == b"hvcC"
     assert hvcC.header.box_size == 111

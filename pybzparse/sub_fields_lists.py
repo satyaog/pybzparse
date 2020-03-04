@@ -482,3 +482,89 @@ class ChunkOffset64SubFieldsList(ChunkOffsetSubFieldsList):
             entry = ChunkOffset64BoxEntryFieldsList()
             entry.parse_fields(bstr, header)
             self._entries.append(entry)
+
+
+# hev1, hvc1 boxes
+class HEVCConfigurationSubFieldsList(AbstractSubFieldsList, HEVCConfigurationBoxFieldsList):
+    def __init__(self):
+        super().__init__()
+
+        self._arrays_start_pos = None
+        self._arrays = []
+
+    def __bytes__(self):
+        return b''.join([HEVCConfigurationBoxFieldsList.__bytes__(self)] +
+                        [bytes(sample) for sample in self._arrays])
+
+    @property
+    def arrays(self):
+        return self._arrays
+
+    def append_and_return(self):
+        entry = HEVCConfigurationArraySubFieldsList()
+        self._arrays.append(entry)
+        self._num_of_arrays.value += 1
+        return entry
+
+    def clear(self):
+        del self._arrays[:]
+        self._num_of_arrays.value = 0
+
+    def pop(self):
+        entry = self._arrays.pop()
+        self._num_of_arrays.value -= 1
+        return entry
+
+    def load_sub_fields(self, bstr, header):
+        bstr.bytepos = self._arrays_start_pos
+        for i in range(self._num_of_arrays.value):
+            array = HEVCConfigurationArraySubFieldsList()
+            array.parse_fields(bstr, header)
+            array.load_sub_fields(bstr, header)
+            self._arrays.append(array)
+
+    def parse_fields(self, bstr, header):
+        super().parse_fields(bstr, header)
+        self._arrays_start_pos = bstr.bytepos
+
+
+class HEVCConfigurationArraySubFieldsList(AbstractSubFieldsList, HEVCConfigurationBoxArrayFieldsList):
+    def __init__(self):
+        super().__init__()
+
+        self._nalus_start_pos = None
+        self._nalus = []
+
+    def __bytes__(self):
+        return b''.join([HEVCConfigurationBoxArrayFieldsList.__bytes__(self)] +
+                        [bytes(sample) for sample in self._nalus])
+
+    @property
+    def nalus(self):
+        return self._nalus
+
+    def append_and_return(self):
+        entry = HEVCConfigurationBoxNaluFieldsList()
+        self._nalus.append(entry)
+        self._num_nalus.value += 1
+        return entry
+
+    def clear(self):
+        del self._nalus[:]
+        self._num_nalus.value = 0
+
+    def pop(self):
+        entry = self._nalus.pop()
+        self._num_nalus.value -= 1
+        return entry
+
+    def load_sub_fields(self, bstr, header):
+        bstr.bytepos = self._nalus_start_pos
+        for i in range(self._num_nalus.value):
+            nalu = HEVCConfigurationBoxNaluFieldsList()
+            nalu.parse_fields(bstr, header)
+            self._nalus.append(nalu)
+
+    def parse_fields(self, bstr, header):
+        super().parse_fields(bstr, header)
+        self._nalus_start_pos = bstr.bytepos

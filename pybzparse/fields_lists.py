@@ -1607,6 +1607,7 @@ class VisualSampleEntryBoxFieldsList(SampleEntryBoxFieldsList):
 
         self._pre_defined0 = \
             self._register_field(Field(value_type="bits", size=16))
+        # _reserved0 is in parent
         self._reserved1 = \
             self._register_field(Field(value_type="bits", size=16))
         self._pre_defined1 = \
@@ -2021,7 +2022,7 @@ class ItemInfoEntryBoxFieldsList(AbstractFieldsList):
                 pass
 
 
-# avc1 boxes
+# avc1, hev1, hvc1 boxes
 class PixelAspectRatioBoxFieldsList(AbstractFieldsList):
     def __init__(self, length=0):
         super().__init__(length + 8)
@@ -2151,3 +2152,334 @@ class CleanApertureBoxFieldsList(AbstractFieldsList):
         self._read_field(bstr, self._horiz_off_d)
         self._read_field(bstr, self._vert_off_n)
         self._read_field(bstr, self._vert_off_d)
+
+
+# hev1, hvc1 boxes
+class HEVCConfigurationBoxFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 23)
+
+        self._configuration_version = \
+            self._register_field(Field(value_type="uintbe", size=8))
+
+        self._general_profile_space = \
+            self._register_field(Field(value_type="uint", size=2))
+        self._general_tier_flag = \
+            self._register_field(Field(value_type="uint", size=1))
+        self._general_profile_idc = \
+            self._register_field(Field(value_type="uint", size=5))
+        self._general_profile_compatibility_flags = \
+            self._register_field(Field(value_type="uintbe", size=32))
+        self._general_constraint_indicator_flags = \
+            self._register_field(Field(value_type="uintbe", size=48))
+        self._general_level_idc = \
+            self._register_field(Field(value_type="uintbe", size=8))
+
+        self._reserved0 = \
+            self._register_field(Field(value_type="bits", size=4))
+
+        self._min_spatial_segmentation_idc = \
+            self._register_field(Field(value_type="uint", size=12))
+
+        self._reserved1 = \
+            self._register_field(Field(value_type="bits", size=6))
+
+        self._parallelism_type = \
+            self._register_field(Field(value_type="uint", size=2))
+
+        self._reserved2 = \
+            self._register_field(Field(value_type="bits", size=6))
+
+        self._chroma_format = \
+            self._register_field(Field(value_type="uint", size=2))
+
+        self._reserved3 = \
+            self._register_field(Field(value_type="bits", size=5))
+
+        self._bit_depth_luma_minus_8 = \
+            self._register_field(Field(value_type="uint", size=3))
+
+        self._reserved4 = \
+            self._register_field(Field(value_type="bits", size=5))
+
+        self._bit_depth_chroma_minus_8 = \
+            self._register_field(Field(value_type="uint", size=3))
+
+        self._avg_frame_rate = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._constant_frame_rate = \
+            self._register_field(Field(value_type="uint", size=2))
+        self._num_temporal_layers = \
+            self._register_field(Field(value_type="uint", size=3))
+        self._temporal_id_nested = \
+            self._register_field(Field(value_type="uint", size=1))
+        self._length_size_minus_one = \
+            self._register_field(Field(value_type="uint", size=2))
+
+        self._num_of_arrays = \
+            self._register_field(Field(value_type="uint", size=8))
+
+        # initialize with empty value
+        self._set_field(self._reserved0, '0b1111')
+        self._set_field(self._reserved1, '0b111111')
+        self._set_field(self._reserved2, '0b111111')
+        self._set_field(self._reserved3, '0b11111')
+        self._set_field(self._reserved4, '0b11111')
+        self._set_field(self._num_of_arrays, 0)
+
+    @property
+    def configuration_version(self):
+        return self._configuration_version.value
+
+    @configuration_version.setter
+    def configuration_version(self, value):
+        self._set_field(self._configuration_version, value)
+
+    @property
+    def general_profile_space(self):
+        return self._general_profile_space.value
+
+    @general_profile_space.setter
+    def general_profile_space(self, value):
+        self._set_field(self._general_profile_space, value)
+
+    @property
+    def general_tier_flag(self):
+        return self._general_tier_flag.value
+
+    @general_tier_flag.setter
+    def general_tier_flag(self, value):
+        self._set_field(self._general_tier_flag, value)
+
+    @property
+    def general_profile_idc(self):
+        return self._general_profile_idc.value
+
+    @general_profile_idc.setter
+    def general_profile_idc(self, value):
+        self._set_field(self._general_profile_idc, value)
+
+    @property
+    def general_profile_compatibility_flags(self):
+        return self._general_profile_compatibility_flags.value
+
+    @general_profile_compatibility_flags.setter
+    def general_profile_compatibility_flags(self, value):
+        self._set_field(self._general_profile_compatibility_flags, value)
+
+    @property
+    def general_constraint_indicator_flags(self):
+        return self._general_constraint_indicator_flags.value
+
+    @general_constraint_indicator_flags.setter
+    def general_constraint_indicator_flags(self, value):
+        self._set_field(self._general_constraint_indicator_flags, value)
+
+    @property
+    def general_level_idc(self):
+        return self._general_level_idc.value
+
+    @general_level_idc.setter
+    def general_level_idc(self, value):
+        self._set_field(self._general_level_idc, value)
+
+    @property
+    def min_spatial_segmentation_idc(self):
+        return self._min_spatial_segmentation_idc.value
+
+    @min_spatial_segmentation_idc.setter
+    def min_spatial_segmentation_idc(self, value):
+        self._set_field(self._min_spatial_segmentation_idc, value)
+
+    @property
+    def parallelism_type(self):
+        return self._parallelism_type.value
+
+    @parallelism_type.setter
+    def parallelism_type(self, value):
+        self._set_field(self._parallelism_type, value)
+
+    @property
+    def chroma_format(self):
+        return self._chroma_format.value
+
+    @chroma_format.setter
+    def chroma_format(self, value):
+        self._set_field(self._chroma_format, value)
+
+    @property
+    def bit_depth_luma_minus_8(self):
+        return self._bit_depth_luma_minus_8.value
+
+    @bit_depth_luma_minus_8.setter
+    def bit_depth_luma_minus_8(self, value):
+        self._set_field(self._bit_depth_luma_minus_8, value)
+
+    @property
+    def bit_depth_chroma_minus_8(self):
+        return self._bit_depth_chroma_minus_8.value
+
+    @bit_depth_chroma_minus_8.setter
+    def bit_depth_chroma_minus_8(self, value):
+        self._set_field(self._bit_depth_chroma_minus_8, value)
+
+    @property
+    def avg_frame_rate(self):
+        return self._avg_frame_rate.value
+
+    @avg_frame_rate.setter
+    def avg_frame_rate(self, value):
+        self._set_field(self._avg_frame_rate, value)
+
+    @property
+    def constant_frame_rate(self):
+        return self._constant_frame_rate.value
+
+    @constant_frame_rate.setter
+    def constant_frame_rate(self, value):
+        self._set_field(self._constant_frame_rate, value)
+
+    @property
+    def num_temporal_layers(self):
+        return self._num_temporal_layers.value
+
+    @num_temporal_layers.setter
+    def num_temporal_layers(self, value):
+        self._set_field(self._num_temporal_layers, value)
+
+    @property
+    def temporal_id_nested(self):
+        return self._temporal_id_nested.value
+
+    @temporal_id_nested.setter
+    def temporal_id_nested(self, value):
+        self._set_field(self._temporal_id_nested, value)
+
+    @property
+    def length_size_minus_one(self):
+        return self._length_size_minus_one.value
+
+    @length_size_minus_one.setter
+    def length_size_minus_one(self, value):
+        self._set_field(self._length_size_minus_one, value)
+
+    @property
+    def num_of_arrays(self):
+        return self._num_of_arrays.value
+
+    @num_of_arrays.setter
+    def num_of_arrays(self, value):
+        self._set_field(self._num_of_arrays, value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._configuration_version)
+
+        self._read_field(bstr, self._general_profile_space)
+        self._read_field(bstr, self._general_tier_flag)
+        self._read_field(bstr, self._general_profile_idc)
+        self._read_field(bstr, self._general_profile_compatibility_flags)
+        self._read_field(bstr, self._general_constraint_indicator_flags)
+        self._read_field(bstr, self._general_level_idc)
+
+        self._read_field(bstr, self._reserved0)
+        self._read_field(bstr, self._min_spatial_segmentation_idc)
+        self._read_field(bstr, self._reserved1)
+        self._read_field(bstr, self._parallelism_type)
+        self._read_field(bstr, self._reserved2)
+        self._read_field(bstr, self._chroma_format)
+        self._read_field(bstr, self._reserved3)
+        self._read_field(bstr, self._bit_depth_luma_minus_8)
+        self._read_field(bstr, self._reserved4)
+
+        self._read_field(bstr, self._bit_depth_chroma_minus_8)
+        self._read_field(bstr, self._avg_frame_rate)
+        self._read_field(bstr, self._constant_frame_rate)
+        self._read_field(bstr, self._num_temporal_layers)
+        self._read_field(bstr, self._temporal_id_nested)
+        self._read_field(bstr, self._length_size_minus_one)
+
+        self._read_field(bstr, self._num_of_arrays)
+
+
+class HEVCConfigurationBoxArrayFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 4)
+
+        self._array_completeness = \
+            self._register_field(Field(value_type="uint", size=1))
+
+        self._reserved0 = \
+            self._register_field(Field(value_type="bits", size=1))
+
+        self._nal_unit_type = \
+            self._register_field(Field(value_type="uint", size=6))
+        self._num_nalus = \
+            self._register_field(Field(value_type="uintbe", size=16))
+
+        # initialize with empty value
+        self._set_field(self._reserved0, '0b0')
+        self._set_field(self._num_nalus, 0)
+
+    @property
+    def array_completeness(self):
+        return self._array_completeness.value
+
+    @array_completeness.setter
+    def array_completeness(self, value):
+        self._set_field(self._array_completeness, value)
+
+    @property
+    def nal_unit_type(self):
+        return self._nal_unit_type.value
+
+    @nal_unit_type.setter
+    def nal_unit_type(self, value):
+        self._set_field(self._nal_unit_type, value)
+
+    @property
+    def num_nalus(self):
+        return self._num_nalus.value
+
+    @num_nalus.setter
+    def num_nalus(self, value):
+        self._set_field(self._num_nalus, value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._array_completeness)
+        self._read_field(bstr, self._reserved0)
+        self._read_field(bstr, self._nal_unit_type)
+        self._read_field(bstr, self._num_nalus)
+
+
+class HEVCConfigurationBoxNaluFieldsList(AbstractFieldsList):
+    def __init__(self, length=0):
+        super().__init__(length + 2)
+
+        self._nal_unit_length = \
+            self._register_field(Field(value_type="uintbe", size=16))
+        self._nal_unit = \
+            self._register_field(Field(value_type="bytes", size=1))
+
+    @property
+    def nal_unit_length(self):
+        return self._nal_unit_length.value
+
+    @nal_unit_length.setter
+    def nal_unit_length(self, value):
+        self._set_field(self._nal_unit_length, value)
+
+    @property
+    def nal_unit(self):
+        return self._nal_unit.value
+
+    @nal_unit.setter
+    def nal_unit(self, value):
+        self._set_field(self._nal_unit, value)
+
+    def parse_fields(self, bstr, header):
+        del header
+        self._read_field(bstr, self._nal_unit_length)
+        self._nal_unit.type = "bytes:{}".format(self._nal_unit_length.value)
+        self._read_field(bstr, self._nal_unit)

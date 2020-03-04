@@ -12,7 +12,8 @@ from pybzparse.sub_fields_lists import EditListSubFieldsList, \
                                        ChunkOffsetSubFieldsList, \
                                        ChunkOffset64SubFieldsList, \
                                        ItemLocationSubFieldsList, \
-                                       ItemPropertyAssociationSubFieldsList
+                                       ItemPropertyAssociationSubFieldsList, \
+                                       HEVCConfigurationSubFieldsList
 
 
 class MixinDictRepr(object):
@@ -1075,7 +1076,7 @@ class ItemInfoEntryBox(ContainerBox, ItemInfoEntryBoxFieldsList, MixinDictRepr):
         return super().parse_box(bstr, full_box_header)
 
 
-# avc1 boxes
+# avc1, hev1, hvc1 boxes
 class PixelAspectRatioBox(AbstractBox, PixelAspectRatioBoxFieldsList):
     type = b"pasp"
 
@@ -1108,6 +1109,31 @@ class CleanApertureBox(AbstractBox, CleanApertureBoxFieldsList):
 
     def _get_content_bytes(self):
         return AbstractFieldsList.__bytes__(self)
+
+
+# hev1, hvc1 boxes
+class HEVCConfigurationBox(AbstractBox, HEVCConfigurationSubFieldsList,
+                           MixinDictRepr):
+    type = b"hvcC"
+
+    def __init__(self, header):
+        super().__init__(header)
+        HEVCConfigurationSubFieldsList.__init__(self)
+
+    def load(self, bstr):
+        self.load_sub_fields(bstr, self._header)
+
+        self._remaining_bytes = self._header.start_pos + self._header.box_size - \
+                                bstr.bytepos
+        if self._remaining_bytes != 0:
+            self._padding = bstr.read(self._remaining_bytes * 8).bytes
+
+    def parse_impl(self, bstr):
+        self.parse_fields(bstr, self._header)
+        bstr.bytepos = self._header.start_pos + self._header.box_size
+
+    def _get_content_bytes(self):
+        return HEVCConfigurationSubFieldsList.__bytes__(self)
 
 
 # Root boxes
@@ -1179,10 +1205,12 @@ URN_ = DataEntryUrnBox
 # iinf boxes
 INFE = ItemInfoEntryBox
 
-# avc1 boxes
+# avc1, hev1, hvc1 boxes
 PASP = PixelAspectRatioBox
 CLAP = CleanApertureBox
 
+# hev1, hvc1 boxes
+HVCC = HEVCConfigurationBox
 
 # Register boxes
 Parser.register_container_box(ContainerBox)
@@ -1257,6 +1285,9 @@ Parser.register_box(URN_)
 # iinf boxes
 Parser.register_box(INFE)
 
-# avc1 boxes
+# avc1, hev1, hvc1 boxes
 Parser.register_box(PASP)
 Parser.register_box(CLAP)
+
+# hev1, hvc1 boxes
+Parser.register_box(HVCC)
